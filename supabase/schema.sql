@@ -167,3 +167,15 @@ create table if not exists public.themes (
 alter table public.themes enable row level security;
 create policy "themes_owner" on public.themes
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- ---------- verification ----------
+-- Run this separately after the script above to confirm, from Postgres's
+-- own catalog (not the SQL Editor's pre-run warning banner, which fires
+-- any time it sees CREATE TABLE regardless of whether RLS is enabled
+-- later in the same script -- a known false positive, not a real signal).
+-- Every row here should show rowsecurity = true.
+--
+-- select schemaname, tablename, rowsecurity
+-- from pg_tables
+-- where schemaname = 'public'
+-- order by tablename;
