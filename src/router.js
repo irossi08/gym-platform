@@ -68,6 +68,14 @@ App.Router = (function () {
     }
 
     window.scrollTo(0, 0);
+
+    // The tour always starts on Home (the default post-login page), and
+    // only auto-plays the first time this user has ever reached it --
+    // TourOverlay itself drives navigation onward from here, so this is
+    // the only spot that needs to kick it off.
+    if (route === 'home' && user && !App.Storage.getTourSeen(user.id) && !App.Components.TourOverlay.isActive()) {
+      App.Components.TourOverlay.start(user);
+    }
   }
 
   // Re-renders just the navbar against whatever route/user it last rendered
@@ -86,5 +94,5 @@ App.Router = (function () {
     handleRouteChange();
   }
 
-  return { init, navigate, refreshNavbar };
+  return { init, navigate, refreshNavbar, getRoute: parseRoute };
 })();

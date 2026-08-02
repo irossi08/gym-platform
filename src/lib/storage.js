@@ -12,6 +12,7 @@ App.Storage = (function () {
   function bodyweightLogKey(userId) { return 'orm_bodyweight_log_' + userId; }
   function goalKey(userId) { return 'orm_goal_' + userId; }
   function achievementsKey(userId) { return 'orm_achievements_' + userId; }
+  function tourSeenKey(userId) { return 'orm_tour_seen_' + userId; }
 
   function makeId() {
     if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
@@ -179,6 +180,16 @@ App.Storage = (function () {
     return list;
   }
 
+  // Whether this user has ever completed or skipped the onboarding tour --
+  // once true, it never auto-plays again.
+  function getTourSeen(userId) {
+    return localStorage.getItem(tourSeenKey(userId)) === 'true';
+  }
+
+  function setTourSeen(userId) {
+    localStorage.setItem(tourSeenKey(userId), 'true');
+  }
+
   return {
     getHistory, saveHistory, addEntry, deleteEntry,
     getSettings, saveSettings,
@@ -189,5 +200,6 @@ App.Storage = (function () {
     getBodyweightLog, saveBodyweightLog, addBodyweightEntry,
     getGoal, saveGoal, clearGoal,
     getAchievements, saveAchievements, addAchievement,
+    getTourSeen, setTourSeen,
   };
 })();
