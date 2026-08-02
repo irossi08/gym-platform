@@ -1757,6 +1757,32 @@ a:focus-visible {
   color: var(--text-secondary);
 }
 
+/* Home-only quick-jump row -- shortcuts alongside the hamburger menu, not
+   instead of it. */
+.home-quick-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.home-quick-link {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--surface-2);
+  text-decoration: none;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.home-quick-link:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .home-today-label {
   font-family: var(--font-display);
   font-size: 1.2rem;
