@@ -6,6 +6,7 @@ App.Components.LiftForm = (function () {
     const defaults = opts.defaults || {};
     const onSubmit = opts.onSubmit;
     const onLiftChange = opts.onLiftChange;
+    const userId = opts.userId;
     const defaultLift = defaults.lift || 'squat';
 
     container.innerHTML =
@@ -68,7 +69,7 @@ App.Components.LiftForm = (function () {
     let currentLift = defaultLift;
 
     function updateWeightFieldForLift() {
-      const isBw = App.Standards.isBodyweightLift(currentLift);
+      const isBw = App.ExerciseLibrary.isBodyweightLift(currentLift);
       weightLabel.textContent = isBw ? 'Added weight' : 'Weight lifted';
       weightHint.hidden = !isBw;
       weightInput.placeholder = isBw ? 'e.g. 20 (0 for bodyweight only)' : 'e.g. 100';
@@ -78,6 +79,7 @@ App.Components.LiftForm = (function () {
     App.Components.ExercisePicker.render(form.querySelector('#f-lift-slot'), {
       id: 'f-lift',
       value: currentLift,
+      userId: userId,
       onChange: function (newLift) {
         currentLift = newLift;
         updateWeightFieldForLift();
@@ -103,7 +105,7 @@ App.Components.LiftForm = (function () {
       const lift = currentLift;
       const unit = form.querySelector('#f-unit').value;
       const sex = form.querySelector('#f-sex').value;
-      const isBw = App.Standards.isBodyweightLift(lift);
+      const isBw = App.ExerciseLibrary.isBodyweightLift(lift);
       const enteredWeight = parseFloat(weightInput.value);
       const reps = parseInt(repsInput.value, 10);
       const bodyweight = parseFloat(bodyweightInput.value);

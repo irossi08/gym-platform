@@ -4,8 +4,8 @@ App.Components = App.Components || {};
 App.Components.HistoryList = (function () {
   function buildFilters() {
     const all = [{ value: 'all', label: 'All' }];
-    const rest = App.Standards.CATEGORIES.reduce(function (acc, group) {
-      return acc.concat(group.lifts.map(function (l) { return { value: l, label: App.Standards.LIFT_LABELS[l] }; }));
+    const rest = App.ExerciseLibrary.categories().reduce(function (acc, group) {
+      return acc.concat(group.lifts.map(function (l) { return { value: l, label: App.ExerciseLibrary.label(l) }; }));
     }, []);
     return all.concat(rest);
   }
@@ -54,13 +54,13 @@ App.Components.HistoryList = (function () {
 
     let listHtml;
     if (filtered.length === 0) {
-      listHtml = '<div class="empty-state"><p class="empty-hint">No ' + App.Standards.LIFT_LABELS[filter] + ' sets logged yet.</p></div>';
+      listHtml = '<div class="empty-state"><p class="empty-hint">No ' + App.ExerciseLibrary.label(filter) + ' sets logged yet.</p></div>';
     } else {
       listHtml =
         '<ul class="history-list">' +
           filtered.map(function (e) {
             const estDisplay = App.Units.round(App.Units.convert(e.estimated1RM, e.unit, displayUnit), 0);
-            const liftLabel = App.Standards.LIFT_LABELS[e.lift] || e.lift;
+            const liftLabel = App.ExerciseLibrary.label(e.lift);
             return (
               '<li class="history-item" data-id="' + e.id + '">' +
                 '<div class="history-item-main">' +

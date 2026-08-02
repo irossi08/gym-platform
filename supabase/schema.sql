@@ -183,6 +183,40 @@ drop policy if exists "themes_owner" on public.themes;
 create policy "themes_owner" on public.themes
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+-- ---------- user_added_exercises (tracks which curated-pool exercises this
+-- user has added to their own picker -- the pool's own data (names,
+-- muscles, standards, descriptions) lives in code, not here) ----------
+create table if not exists public.user_added_exercises (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  exercise_key text not null,
+  added_at timestamptz not null default now(),
+  primary key (user_id, exercise_key)
+);
+
+alter table public.user_added_exercises enable row level security;
+drop policy if exists "user_added_exercises_owner" on public.user_added_exercises;
+create policy "user_added_exercises_owner" on public.user_added_exercises
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- ---------- user_custom_exercises (genuinely custom exercises a user typed
+-- in that weren't found in the curated pool -- no standards data, ever) ----------
+create table if not exists public.user_custom_exercises (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  name text not null,
+  primary_muscle text not null,
+  secondary_muscle text,
+  description text,
+  pattern text,
+  created_at timestamptz not null default now()
+);
+
+alter table public.user_custom_exercises enable row level security;
+drop policy if exists "user_custom_exercises_owner" on public.user_custom_exercises;
+create policy "user_custom_exercises_owner" on public.user_custom_exercises
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create index if not exists user_custom_exercises_user_id_idx on public.user_custom_exercises (user_id);
+
 -- ---------- verification ----------
 -- Run this separately after the script above to confirm, from Postgres's
 -- own catalog (not the SQL Editor's pre-run warning banner, which can fire

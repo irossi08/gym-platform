@@ -1,4 +1,4 @@
-window.App = window.App || {};
+﻿window.App = window.App || {};
 App.Components = App.Components || {};
 
 /**
@@ -25,14 +25,21 @@ App.Components.ProgressChart = (function () {
     { value: 'year', label: 'Last Year', months: 12 },
   ];
 
-  const LIFT_ORDER = App.Standards.CATEGORIES.reduce(function (acc, g) { return acc.concat(g.lifts); }, []);
+  // Recomputed per call (not a load-time constant) since it now depends on
+  // the current user's added/custom exercises, not just the built-in 22 --
+  // stable across renders regardless, since that list only ever grows by
+  // appending.
+  function liftOrder() {
+    return App.ExerciseLibrary.categories().reduce(function (acc, g) { return acc.concat(g.lifts); }, []);
+  }
 
   // Hues spread evenly around the wheel by fixed index (not by how many
   // lifts happen to have data), so a given exercise always gets the same
   // color regardless of which others are active or filtered out.
   function colorForLift(lift) {
-    const idx = LIFT_ORDER.indexOf(lift);
-    const hue = ((idx >= 0 ? idx : 0) * (360 / LIFT_ORDER.length)) % 360;
+    const order = liftOrder();
+    const idx = order.indexOf(lift);
+    const hue = ((idx >= 0 ? idx : 0) * (360 / order.length)) % 360;
     return 'hsl(' + hue.toFixed(1) + ', 70%, 58%)';
   }
 
@@ -103,7 +110,7 @@ App.Components.ProgressChart = (function () {
     visibleLifts.forEach(function (lift) {
       const points = byLift[lift];
       const color = colorForLift(lift);
-      const label = App.Standards.LIFT_LABELS[lift];
+      const label = App.ExerciseLibrary.label(lift);
 
       if (points.length > 1) {
         const d = points.map(function (p, i) { return (i === 0 ? 'M ' : 'L ') + xPos(p.date.getTime()) + ' ' + yPos(p.value); }).join(' ');
@@ -167,7 +174,7 @@ App.Components.ProgressChart = (function () {
         }).join('') +
       '</select>';
 
-    const searchHtml = '<input type="text" class="progress-search-input" placeholder="Search exercises…" value="' + escapeAttr(state.search) + '" />';
+    const searchHtml = '<input type="text" class="progress-search-input" placeholder="Search exercisesâ€¦" value="' + escapeAttr(state.search) + '" />';
 
     // Search is the primary way to find one exercise among all 22; the key
     // itself is capped to a short scrollable strip rather than a big grid so
@@ -179,7 +186,7 @@ App.Components.ProgressChart = (function () {
           return (
             '<button type="button" class="progress-legend-item' + (hidden ? ' progress-legend-item--hidden' : '') + '" data-lift="' + lift + '">' +
               '<span class="progress-legend-swatch" style="background:' + colorForLift(lift) + '"></span>' +
-              App.Standards.LIFT_LABELS[lift] +
+              App.ExerciseLibrary.label(lift) +
             '</button>'
           );
         }).join('') +
@@ -196,7 +203,7 @@ App.Components.ProgressChart = (function () {
     function visibleLiftsNow() {
       const searchLower = state.search.trim().toLowerCase();
       return allLifts.filter(function (lift) {
-        const matches = !searchLower || App.Standards.LIFT_LABELS[lift].toLowerCase().indexOf(searchLower) !== -1;
+        const matches = !searchLower || App.ExerciseLibrary.label(lift).toLowerCase().indexOf(searchLower) !== -1;
         return matches && !state.hiddenLifts[lift];
       });
     }
@@ -208,7 +215,7 @@ App.Components.ProgressChart = (function () {
       }
       const visible = visibleLiftsNow();
       chartWrapEl.innerHTML = visible.length === 0
-        ? '<p class="empty-hint">No exercises match — adjust your search or the key above.</p>'
+        ? '<p class="empty-hint">No exercises match â€” adjust your search or the key above.</p>'
         : buildChartSvg(visible, byLift, displayUnit, cutoff, now);
     }
 
@@ -216,7 +223,7 @@ App.Components.ProgressChart = (function () {
       const searchLower = state.search.trim().toLowerCase();
       legendButtons.forEach(function (btn) {
         const lift = btn.dataset.lift;
-        const matches = !searchLower || App.Standards.LIFT_LABELS[lift].toLowerCase().indexOf(searchLower) !== -1;
+        const matches = !searchLower || App.ExerciseLibrary.label(lift).toLowerCase().indexOf(searchLower) !== -1;
         btn.hidden = !matches;
       });
     }

@@ -87,8 +87,9 @@ App.Pages.OneRepMax = (function () {
     function renderForm() {
       App.Components.LiftForm.render(els.form, {
         defaults: state.formDefaults,
+        userId: user.id,
         onSubmit: handleSubmit,
-        onLiftChange: function (liftKey) { App.Components.ExerciseInfoPanel.render(els.infoPanel, liftKey); },
+        onLiftChange: function (liftKey) { App.Components.ExerciseInfoPanel.render(els.infoPanel, liftKey, user.id); },
       });
     }
 

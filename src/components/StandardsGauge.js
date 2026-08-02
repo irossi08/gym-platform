@@ -33,7 +33,14 @@ App.Components.StandardsGauge = (function () {
     const sex = state.sex;
     const displayUnit = state.displayUnit;
 
-    const thresholdsKg = Standards.getThresholdsKg(lift, sex, state.bodyweightKg);
+    const thresholdsKg = App.ExerciseLibrary.thresholdsKg(lift, sex, state.bodyweightKg);
+    if (!thresholdsKg) {
+      container.innerHTML =
+        '<div class="gauge-panel gauge-panel--empty">' +
+          '<p class="empty-hint">No standards data available for custom exercises.</p>' +
+        '</div>';
+      return;
+    }
     const maxKg = thresholdsKg.elite * 1.15;
     const levelKey = Standards.rank(state.oneRmKg, thresholdsKg);
 

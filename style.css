@@ -753,6 +753,98 @@ a:focus-visible {
   font-weight: 700;
 }
 
+.ex-picker-option[hidden] {
+  display: none;
+}
+
+.ex-picker-group[hidden] {
+  display: none;
+}
+
+/* ---------- Exercise picker: search + add-exercise flow ---------- */
+
+.ex-picker-search-wrap {
+  padding: 4px 4px 8px;
+}
+
+.ex-picker-search {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+  font-size: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+}
+
+.ex-picker-search:focus {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.ex-picker-add-area {
+  padding: 8px 6px 4px;
+  margin-top: 4px;
+  border-top: 1px solid var(--gridline);
+}
+
+.ex-picker-add-hint {
+  margin: 0 0 6px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.ex-picker-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.ex-picker-custom-link {
+  display: block;
+  background: none;
+  border: none;
+  padding: 0;
+  margin-top: 6px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  text-decoration: underline;
+  cursor: pointer;
+  text-align: left;
+}
+
+.ex-picker-custom-link:hover {
+  color: var(--text-secondary);
+}
+
+.ex-picker-custom-form .field {
+  margin-bottom: 10px;
+}
+
+.ex-picker-custom-form .field input,
+.ex-picker-custom-form .field select {
+  min-height: 38px;
+  padding: 6px 10px;
+  font-size: 0.85rem;
+}
+
+.ex-picker-custom-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.ex-picker-custom-actions .btn-primary {
+  width: auto;
+  min-height: 38px;
+  padding: 0 16px;
+}
+
 .field-error {
   min-height: 1.1em;
   margin: 6px 0 0;

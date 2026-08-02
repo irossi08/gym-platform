@@ -19,7 +19,7 @@ App.Components.GoalCelebration = (function () {
       const verb = goal.direction === 'lose' ? 'down to' : 'up to';
       return 'Goal reached! You made it ' + verb + ' ' + target + ' ' + goal.unit + ' \u{1F4AA}';
     }
-    return 'Goal reached! You hit ' + target + ' ' + goal.unit + ' on ' + App.Standards.LIFT_LABELS[goal.lift] + ' \u{1F4AA}';
+    return 'Goal reached! You hit ' + target + ' ' + goal.unit + ' on ' + App.ExerciseLibrary.label(goal.lift) + ' \u{1F4AA}';
   }
 
   function playApplause() {

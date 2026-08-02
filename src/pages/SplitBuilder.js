@@ -386,6 +386,7 @@ App.Pages.SplitBuilder = (function () {
         id: 'sb-swap-' + weekday + '-' + exIdx,
         value: findDay(weekday).exercises[exIdx].lift,
         triggerClass: 'ex-picker-trigger--inline',
+        userId: user.id,
         onChange: function (newLift) {
           const sr = App.SplitBuilder.getSetsReps(newLift, profile.experienceLevel);
           findDay(weekday).exercises[exIdx] = {
@@ -404,6 +405,7 @@ App.Pages.SplitBuilder = (function () {
       App.Components.ExercisePicker.render(slot, {
         id: 'sb-add-' + weekday,
         value: addPickerValues[weekday],
+        userId: user.id,
         onChange: function (newLift) { addPickerValues[weekday] = newLift; },
       });
     });

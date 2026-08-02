@@ -44,11 +44,13 @@ App.Goals = (function () {
   // that lift/bodyweight/sex (same table behind the standards gauge),
   // floored at Novice -- hitting the goal at all guarantees at least the
   // lowest medal even if the standards table would otherwise call it
-  // "untrained"/"below_untrained".
+  // "untrained"/"below_untrained". A custom exercise (no standards table
+  // at all) also floors at Novice rather than having no medal.
   function exerciseMedalTier(entry) {
     const bodyweightKg = App.Units.convert(entry.bodyweight, entry.unit, 'kg');
     const oneRmKg = App.Units.convert(entry.estimated1RM, entry.unit, 'kg');
-    const thresholds = App.Standards.getThresholdsKg(entry.lift, entry.sex, bodyweightKg);
+    const thresholds = App.ExerciseLibrary.thresholdsKg(entry.lift, entry.sex, bodyweightKg);
+    if (!thresholds) return 'novice';
     const rank = App.Standards.rank(oneRmKg, thresholds);
     return MEDAL_TIERS.indexOf(rank) !== -1 ? rank : 'novice';
   }

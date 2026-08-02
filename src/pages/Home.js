@@ -101,7 +101,7 @@ App.Pages.Home = (function () {
 
     const title = goal.type === 'bodyweight'
       ? (goal.direction === 'lose' ? 'Lose ' : 'Gain ') + goal.amount + ' ' + goal.unit
-      : App.Standards.LIFT_LABELS[goal.lift] + ': ' + goal.targetWeight + ' ' + goal.unit;
+      : App.ExerciseLibrary.label(goal.lift) + ': ' + goal.targetWeight + ' ' + goal.unit;
 
     const statusHtml = progress.reached
       ? '<p class="goal-status goal-status--reached">&#10003; Goal reached!</p>'
@@ -138,7 +138,7 @@ App.Pages.Home = (function () {
     const target = App.Units.round(goal.targetWeight, 1);
     const message = goal.type === 'bodyweight'
       ? 'You reached your ' + (goal.direction === 'lose' ? 'lose' : 'gain') + ' goal — ' + target + ' ' + goal.unit + '! \u{1F4AA}'
-      : 'You hit ' + target + ' ' + goal.unit + ' on ' + App.Standards.LIFT_LABELS[goal.lift] + '! \u{1F4AA}';
+      : 'You hit ' + target + ' ' + goal.unit + ' on ' + App.ExerciseLibrary.label(goal.lift) + '! \u{1F4AA}';
     const defaultUnit = App.Storage.getSettings(user.id).displayUnit || 'kg';
 
     container.innerHTML =
@@ -228,6 +228,7 @@ App.Pages.Home = (function () {
     App.Components.ExercisePicker.render(container.querySelector('#goal-exercise-picker-slot'), {
       id: 'goal-exercise-picker',
       value: selectedLift,
+      userId: user.id,
       onChange: function (lift) { selectedLift = lift; },
     });
 
@@ -356,7 +357,7 @@ App.Pages.Home = (function () {
     const completed = App.Schedule.isCompleted(user.id, todayKey);
     const minutes = App.SplitBuilder.estimateMinutes(day.exercises);
     const exerciseListHtml = day.exercises.map(function (ex) {
-      return '<li>' + App.Standards.LIFT_LABELS[ex.lift] + '</li>';
+      return '<li>' + App.ExerciseLibrary.label(ex.lift) + '</li>';
     }).join('');
 
     container.innerHTML =

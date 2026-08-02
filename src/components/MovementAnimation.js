@@ -108,10 +108,19 @@ App.Components.MovementAnimation = (function () {
         '<rect class="move-dot move-dot--shrug" x="20" y="46" width="44" height="6" rx="3" style="fill:var(--accent)" />'
       );
     },
+    // Neutral placeholder for a custom exercise with no chosen movement
+    // pattern -- deliberately not one of the real patterns above, so it
+    // never implies a movement the exercise doesn't actually do.
+    generic: function () {
+      return svgWrap(
+        '<circle cx="42" cy="42" r="24" fill="none" stroke="' + GUIDE + '" stroke-width="2" stroke-dasharray="4 4" />' +
+        '<circle class="move-dot" cx="42" cy="42" r="6" style="fill:var(--text-muted)" />'
+      );
+    },
   };
 
   function render(pattern) {
-    const fn = PATTERNS[pattern] || PATTERNS.squat;
+    const fn = PATTERNS[pattern] || PATTERNS.generic;
     return fn();
   }
 

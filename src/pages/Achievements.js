@@ -6,7 +6,7 @@ App.Pages.Achievements = (function () {
     if (a.type === 'bodyweight') {
       return (a.direction === 'lose' ? 'Lost ' : 'Gained ') + a.amount + ' ' + a.unit;
     }
-    return App.Standards.LIFT_LABELS[a.lift] + ': ' + Math.round(a.targetValue) + ' ' + a.unit;
+    return App.ExerciseLibrary.label(a.lift) + ': ' + Math.round(a.targetValue) + ' ' + a.unit;
   }
 
   function achievementDetail(a) {

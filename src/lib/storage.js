@@ -38,6 +38,8 @@ App.Storage = (function () {
       achievements: [],
       tourSeen: false,
       theme: {},
+      addedExercises: [],
+      customExercises: [],
     };
   }
 
@@ -309,6 +311,46 @@ App.Storage = (function () {
     }, { onConflict: 'user_id' }).then(logIfError('saveTheme'));
   }
 
+  // ---------- user-added curated-pool exercises ----------
+
+  function getUserAddedExercises(userId) {
+    return cacheFor(userId).addedExercises;
+  }
+
+  function addUserAddedExercise(userId, exerciseKey) {
+    const list = getUserAddedExercises(userId);
+    if (list.indexOf(exerciseKey) !== -1) return list;
+    const updated = list.concat([exerciseKey]);
+    cacheFor(userId).addedExercises = updated;
+    db.from('user_added_exercises').insert({
+      user_id: userId, exercise_key: exerciseKey,
+    }).then(logIfError('addUserAddedExercise'));
+    return updated;
+  }
+
+  // ---------- user-authored custom exercises (no standards data) ----------
+
+  function getCustomExercises(userId) {
+    return cacheFor(userId).customExercises;
+  }
+
+  function addCustomExercise(userId, custom) {
+    const key = makeId();
+    const withKey = Object.assign({ key: key }, custom);
+    const list = getCustomExercises(userId).concat([withKey]);
+    cacheFor(userId).customExercises = list;
+    db.from('user_custom_exercises').insert({
+      id: key,
+      user_id: userId,
+      name: custom.name,
+      primary_muscle: custom.primaryMuscle,
+      secondary_muscle: custom.secondaryMuscle,
+      description: custom.description,
+      pattern: custom.pattern,
+    }).then(logIfError('addCustomExercise'));
+    return withKey;
+  }
+
   // ---------- preload ----------
 
   // Fetches everything for `userId` in one parallel batch and fills the
@@ -326,10 +368,13 @@ App.Storage = (function () {
       db.from('goals').select('*').eq('user_id', userId).maybeSingle(),
       db.from('achievements').select('*').eq('user_id', userId),
       db.from('themes').select('*').eq('user_id', userId).maybeSingle(),
+      db.from('user_added_exercises').select('*').eq('user_id', userId),
+      db.from('user_custom_exercises').select('*').eq('user_id', userId),
     ]).then(function (results) {
       const [
         entriesRes, settingsRes, profileRes, splitRes, completionsRes,
         streakRes, bwLogRes, goalRes, achievementsRes, themeRes,
+        addedExercisesRes, customExercisesRes,
       ] = results;
 
       results.forEach(function (r, i) {
@@ -388,6 +433,15 @@ App.Storage = (function () {
           bg: themeRow.bg, surface: themeRow.surface, accent: themeRow.accent, text: themeRow.text_color,
           density: themeRow.density, viewStyle: themeRow.view_style, fontSize: themeRow.font_size,
         }) : {},
+
+        addedExercises: (addedExercisesRes.data || []).map(function (row) { return row.exercise_key; }),
+
+        customExercises: (customExercisesRes.data || []).map(function (row) {
+          return {
+            key: row.id, name: row.name, primaryMuscle: row.primary_muscle,
+            secondaryMuscle: row.secondary_muscle, description: row.description, pattern: row.pattern,
+          };
+        }),
       };
     });
   }
@@ -405,5 +459,7 @@ App.Storage = (function () {
     getAchievements, saveAchievements, addAchievement,
     getTourSeen, setTourSeen,
     getTheme, saveTheme,
+    getUserAddedExercises, addUserAddedExercise,
+    getCustomExercises, addCustomExercise,
   };
 })();

@@ -44,7 +44,7 @@ App.Components.TrendChart = (function () {
     if (relevantEntries.length === 0) {
       const msg = filter === 'all'
         ? 'Log a few sets to see your estimated 1RM trend over time.'
-        : 'No ' + App.Standards.LIFT_LABELS[filter] + ' history yet — log a set to start this trend line.';
+        : 'No ' + App.ExerciseLibrary.label(filter) + ' history yet — log a set to start this trend line.';
       container.innerHTML =
         '<h2 class="section-title">Trend</h2>' +
         '<div class="empty-state"><p class="empty-hint">' + msg + '</p></div>';
@@ -127,7 +127,7 @@ App.Components.TrendChart = (function () {
       const colorVar = isPrimary ? '--accent' : style.colorVar;
       const dash = isPrimary ? null : style.dash;
       const strokeWidth = isPrimary ? 3 : 2;
-      const liftLabel = App.Standards.LIFT_LABELS[lift];
+      const liftLabel = App.ExerciseLibrary.label(lift);
 
       if (points.length > 1) {
         const d = points.map(function (p, i) { return (i === 0 ? 'M ' : 'L ') + xPos(p.date.getTime()) + ' ' + yPos(p.value); }).join(' ');

@@ -6,8 +6,8 @@ App.Components.ExerciseInfoPanel = (function () {
     return '<span class="muscle-chip' + (isPrimary ? ' muscle-chip--primary' : '') + '">' + name + '</span>';
   }
 
-  function render(container, liftKey) {
-    const info = App.ExerciseInfo.get(liftKey);
+  function render(container, liftKey, userId) {
+    const info = App.ExerciseLibrary.info(liftKey, userId);
     if (!info) {
       container.innerHTML = '';
       return;
@@ -23,7 +23,7 @@ App.Components.ExerciseInfoPanel = (function () {
       '<div class="info-panel">' +
         '<div class="info-anim">' + App.Components.MovementAnimation.render(info.pattern) + '</div>' +
         '<div class="info-text">' +
-          '<h3 class="info-exercise-name">' + App.Standards.LIFT_LABELS[liftKey] + '</h3>' +
+          '<h3 class="info-exercise-name">' + App.ExerciseLibrary.label(liftKey, userId) + '</h3>' +
           '<p class="info-description">' + info.description + '</p>' +
           '<div class="info-muscles">' +
             '<div class="info-muscle-group"><span class="info-muscle-label">Primary</span>' +
