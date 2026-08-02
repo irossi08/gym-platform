@@ -71,14 +71,14 @@ App.Components.Navbar = (function () {
             '</button>' +
             '<div class="navbar-menu" role="menu"><div class="navbar-menu-inner">' + menuHtml + '</div></div>' +
           '</div>' +
-          '<a href="#/" class="navbar-brand">1RM<span class="navbar-brand-accent">TRACKER</span></a>' +
+          '<a href="#/" class="navbar-brand">CRIMSON<span class="navbar-brand-accent">REP</span></a>' +
         '</div>' +
         '<div class="navbar-right">' +
           '<span class="navbar-user">' + escapeHtml(user.username) + '</span>' +
         '</div>';
     } else {
       bodyHtml =
-        '<a href="#/" class="navbar-brand">1RM<span class="navbar-brand-accent">TRACKER</span></a>' +
+        '<a href="#/" class="navbar-brand">CRIMSON<span class="navbar-brand-accent">REP</span></a>' +
         '<div class="navbar-links">' +
           link('#/login', 'Log in', 'login', activeRoute) +
           link('#/signup', 'Get Started', 'signup', activeRoute, 'btn-accent-sm') +
