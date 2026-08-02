@@ -1,213 +1,399 @@
 window.App = window.App || {};
 
-// Entries and settings are namespaced per user id so different accounts on
-// the same browser never see each other's data.
+/**
+ * Data layer backed by Supabase, but every function here keeps the exact
+ * synchronous signature the rest of the app already calls (getHistory,
+ * addEntry, saveGoal, etc. all still return immediately, no .then()
+ * needed at call sites). That's possible because of a simple pattern:
+ *
+ *   - `preloadAll(userId)` fetches every table for a user in one parallel
+ *     batch and fills an in-memory cache. App.Auth + app.js/Auth.js always
+ *     await this once (on initial load and right after login/signup)
+ *     BEFORE any page gets a chance to render, so by the time any getX()
+ *     below is called, the cache for the current user is already warm.
+ *   - Every getX(userId) just reads that cache synchronously.
+ *   - Every saveX/addX/deleteX updates the cache synchronously (so an
+ *     immediately-following getX in the same render sees the change) and
+ *     also fires off the matching Supabase write in the background,
+ *     fire-and-forget with the error logged if it fails.
+ *
+ * Field names in the cache stay the same camelCase shape the app already
+ * uses; only the row<->cache mapping functions below know about Supabase's
+ * snake_case columns.
+ */
 App.Storage = (function () {
-  function entriesKey(userId) { return 'orm_entries_' + userId; }
-  function settingsKey(userId) { return 'orm_settings_' + userId; }
-  function profileKey(userId) { return 'orm_profile_' + userId; }
-  function splitKey(userId) { return 'orm_split_' + userId; }
-  function completionsKey(userId) { return 'orm_completions_' + userId; }
-  function streakKey(userId) { return 'orm_streak_' + userId; }
-  function bodyweightLogKey(userId) { return 'orm_bodyweight_log_' + userId; }
-  function goalKey(userId) { return 'orm_goal_' + userId; }
-  function achievementsKey(userId) { return 'orm_achievements_' + userId; }
-  function tourSeenKey(userId) { return 'orm_tour_seen_' + userId; }
-  function themeKey(userId) { return 'orm_theme_' + userId; }
+  const db = App.Supabase;
+  const cache = {};
+
+  function emptyCacheFor() {
+    return {
+      history: [],
+      settings: {},
+      profile: null,
+      split: null,
+      completions: [],
+      streak: { count: 0, creditedDates: {}, lastCheckedDateKey: null },
+      bodyweightLog: [],
+      goal: null,
+      achievements: [],
+      tourSeen: false,
+      theme: {},
+    };
+  }
+
+  // Defensive fallback -- in normal operation preloadAll() has always
+  // already run for the current user by the time anything reads this, but
+  // this keeps every getter crash-proof regardless.
+  function cacheFor(userId) {
+    if (!cache[userId]) cache[userId] = emptyCacheFor();
+    return cache[userId];
+  }
+
+  function logIfError(label) {
+    return function (result) {
+      if (result && result.error) console.error('[Storage] ' + label + ' failed:', result.error);
+      return result;
+    };
+  }
+
+  // Strips null/undefined keys so a fetched row with unset columns doesn't
+  // clobber App.Theme's/other Object.assign(defaults, ...) merge patterns
+  // with explicit nulls.
+  function compact(obj) {
+    const out = {};
+    Object.keys(obj).forEach(function (k) {
+      if (obj[k] != null) out[k] = obj[k];
+    });
+    return out;
+  }
 
   function makeId() {
     if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
     return 'e_' + Date.now() + '_' + Math.random().toString(16).slice(2);
   }
 
+  // ---------- entries (logged sets / history) ----------
+
+  function entryFromRow(row) {
+    return {
+      id: row.id, lift: row.lift, weight: row.weight, reps: row.reps, unit: row.unit,
+      estimated1RM: row.estimated_1rm, epley: row.epley, brzycki: row.brzycki, lombardi: row.lombardi,
+      bodyweight: row.bodyweight, sex: row.sex, addedWeight: row.added_weight, date: row.date,
+    };
+  }
+
+  function entryToRow(userId, entry, id) {
+    return {
+      id: id, user_id: userId, lift: entry.lift, weight: entry.weight, reps: entry.reps, unit: entry.unit,
+      estimated_1rm: entry.estimated1RM, epley: entry.epley, brzycki: entry.brzycki, lombardi: entry.lombardi,
+      bodyweight: entry.bodyweight, sex: entry.sex, added_weight: entry.addedWeight, date: entry.date,
+    };
+  }
+
   function getHistory(userId) {
-    try {
-      const raw = JSON.parse(localStorage.getItem(entriesKey(userId)));
-      return Array.isArray(raw) ? raw : [];
-    } catch (e) {
-      return [];
-    }
+    return cacheFor(userId).history;
   }
 
   function saveHistory(userId, list) {
-    localStorage.setItem(entriesKey(userId), JSON.stringify(list));
+    // Cache-only setter -- addEntry/deleteEntry (the only real entry
+    // points) handle their own targeted Supabase insert/delete themselves,
+    // so this never needs to push a bulk sync.
+    cacheFor(userId).history = list;
   }
 
   function addEntry(userId, entry) {
-    const list = getHistory(userId);
-    const withId = Object.assign({ id: makeId() }, entry);
-    list.push(withId);
-    saveHistory(userId, list);
+    const id = makeId();
+    const withId = Object.assign({ id: id }, entry);
+    const list = getHistory(userId).concat([withId]);
+    cacheFor(userId).history = list;
+    db.from('entries').insert(entryToRow(userId, entry, id)).then(logIfError('addEntry'));
     return list;
   }
 
   function deleteEntry(userId, id) {
-    const list = getHistory(userId).filter((e) => e.id !== id);
-    saveHistory(userId, list);
+    const list = getHistory(userId).filter(function (e) { return e.id !== id; });
+    cacheFor(userId).history = list;
+    db.from('entries').delete().eq('id', id).then(logIfError('deleteEntry'));
     return list;
   }
 
+  // ---------- settings (display unit + form defaults) ----------
+
   function getSettings(userId) {
-    try {
-      return JSON.parse(localStorage.getItem(settingsKey(userId))) || {};
-    } catch (e) {
-      return {};
-    }
+    return cacheFor(userId).settings;
   }
 
   function saveSettings(userId, settings) {
-    localStorage.setItem(settingsKey(userId), JSON.stringify(settings));
+    cacheFor(userId).settings = settings;
+    db.from('settings').upsert({
+      user_id: userId,
+      display_unit: settings.displayUnit,
+      form_defaults: settings.formDefaults,
+    }, { onConflict: 'user_id' }).then(logIfError('saveSettings'));
   }
 
+  // ---------- profile (Split Builder questionnaire answers) ----------
+
   function getProfile(userId) {
-    try {
-      return JSON.parse(localStorage.getItem(profileKey(userId))) || null;
-    } catch (e) {
-      return null;
-    }
+    return cacheFor(userId).profile;
   }
 
   function saveProfile(userId, profile) {
-    localStorage.setItem(profileKey(userId), JSON.stringify(profile));
+    cacheFor(userId).profile = profile;
+    db.from('profiles').upsert({
+      user_id: userId,
+      age: profile.age,
+      bodyweight: profile.bodyweight,
+      bodyweight_unit: profile.bodyweightUnit,
+      sex: profile.sex,
+      days_per_week: profile.daysPerWeek,
+      training_weekdays: profile.trainingWeekdays,
+      time_per_session: profile.timePerSession,
+      experience_level: profile.experienceLevel,
+    }, { onConflict: 'user_id' }).then(logIfError('saveProfile'));
   }
 
+  // ---------- split (Build My Split's generated weekly plan) ----------
+
   function getSplit(userId) {
-    try {
-      const raw = JSON.parse(localStorage.getItem(splitKey(userId)));
-      return raw && Array.isArray(raw.days) ? raw : null;
-    } catch (e) {
-      return null;
-    }
+    return cacheFor(userId).split;
   }
 
   function saveSplit(userId, split) {
-    localStorage.setItem(splitKey(userId), JSON.stringify(split));
+    cacheFor(userId).split = split;
+    db.from('splits').upsert({
+      user_id: userId,
+      days: split.days,
+    }, { onConflict: 'user_id' }).then(logIfError('saveSplit'));
   }
 
-  // Completion entries: [{ date: 'YYYY-MM-DD', dayOfWeek: 0-6, completed: bool }],
-  // one per calendar date that's been explicitly toggled (not per weekday
-  // template slot), since the split repeats weekly and each week's occurrence
-  // needs its own record.
+  // ---------- completions (per-calendar-date workout completion log) ----------
+
   function getCompletions(userId) {
-    try {
-      const raw = JSON.parse(localStorage.getItem(completionsKey(userId)));
-      return Array.isArray(raw) ? raw : [];
-    } catch (e) {
-      return [];
-    }
+    return cacheFor(userId).completions;
   }
 
   function saveCompletions(userId, list) {
-    localStorage.setItem(completionsKey(userId), JSON.stringify(list));
+    cacheFor(userId).completions = list;
+    if (list.length === 0) return;
+    db.from('completions').upsert(list.map(function (e) {
+      return { user_id: userId, date: e.date, day_of_week: e.dayOfWeek, completed: e.completed };
+    }), { onConflict: 'user_id,date' }).then(logIfError('saveCompletions'));
   }
 
+  // ---------- streaks ----------
+
   function getStreak(userId) {
-    try {
-      return JSON.parse(localStorage.getItem(streakKey(userId))) || { count: 0, creditedDates: {}, lastCheckedDateKey: null };
-    } catch (e) {
-      return { count: 0, creditedDates: {}, lastCheckedDateKey: null };
-    }
+    return cacheFor(userId).streak;
   }
 
   function saveStreak(userId, streak) {
-    localStorage.setItem(streakKey(userId), JSON.stringify(streak));
+    cacheFor(userId).streak = streak;
+    db.from('streaks').upsert({
+      user_id: userId,
+      count: streak.count,
+      credited_dates: streak.creditedDates,
+      last_checked_date_key: streak.lastCheckedDateKey,
+    }, { onConflict: 'user_id' }).then(logIfError('saveStreak'));
   }
 
-  // Bodyweight log: [{ date: ISOString, weight, unit }], one entry per time
-  // bodyweight was entered anywhere in the app (1 Rep Max page, Split
-  // Builder questionnaire, Home's quick-log) -- shared so a bodyweight goal
-  // has one consistent history to plot regardless of where it was logged.
+  // ---------- bodyweight log ----------
+
   function getBodyweightLog(userId) {
-    try {
-      const raw = JSON.parse(localStorage.getItem(bodyweightLogKey(userId)));
-      return Array.isArray(raw) ? raw : [];
-    } catch (e) {
-      return [];
-    }
+    return cacheFor(userId).bodyweightLog;
   }
 
   function saveBodyweightLog(userId, list) {
-    localStorage.setItem(bodyweightLogKey(userId), JSON.stringify(list));
+    // Cache-only setter -- addBodyweightEntry is the only real entry point.
+    cacheFor(userId).bodyweightLog = list;
   }
 
   function addBodyweightEntry(userId, entry) {
-    const list = getBodyweightLog(userId);
-    list.push(entry);
-    saveBodyweightLog(userId, list);
+    const list = getBodyweightLog(userId).concat([entry]);
+    cacheFor(userId).bodyweightLog = list;
+    db.from('bodyweight_log').insert({
+      user_id: userId, date: entry.date, weight: entry.weight, unit: entry.unit,
+    }).then(logIfError('addBodyweightEntry'));
     return list;
   }
 
-  // Single active goal at a time: either
-  //   { type: 'bodyweight', direction: 'lose'|'gain', amount, startWeight, targetWeight, unit, createdAt }
-  // or
-  //   { type: 'exercise', lift, targetWeight, unit, createdAt }
+  // ---------- goal (single active goal per user) ----------
+
   function getGoal(userId) {
-    try {
-      return JSON.parse(localStorage.getItem(goalKey(userId))) || null;
-    } catch (e) {
-      return null;
-    }
+    return cacheFor(userId).goal;
   }
 
   function saveGoal(userId, goal) {
-    localStorage.setItem(goalKey(userId), JSON.stringify(goal));
+    cacheFor(userId).goal = goal;
+    db.from('goals').upsert({
+      user_id: userId,
+      type: goal.type,
+      direction: goal.direction,
+      amount: goal.amount,
+      start_weight: goal.startWeight,
+      target_weight: goal.targetWeight,
+      unit: goal.unit,
+      lift: goal.lift,
+      created_at: goal.createdAt,
+      achieved: !!goal.achieved,
+      achieved_at: goal.achievedAt,
+    }, { onConflict: 'user_id' }).then(logIfError('saveGoal'));
   }
 
   function clearGoal(userId) {
-    localStorage.removeItem(goalKey(userId));
+    cacheFor(userId).goal = null;
+    db.from('goals').delete().eq('user_id', userId).then(logIfError('clearGoal'));
   }
 
-  // Achieved goals, archived permanently -- starting a new goal never
-  // discards the record of one already reached. Each entry:
-  //   { id, type, lift, direction, startValue, targetValue, amount, unit,
-  //     achievedAt, tier }
+  // ---------- achievements (archived reached goals) ----------
+
   function getAchievements(userId) {
-    try {
-      const raw = JSON.parse(localStorage.getItem(achievementsKey(userId)));
-      return Array.isArray(raw) ? raw : [];
-    } catch (e) {
-      return [];
-    }
+    return cacheFor(userId).achievements;
   }
 
   function saveAchievements(userId, list) {
-    localStorage.setItem(achievementsKey(userId), JSON.stringify(list));
+    // Cache-only setter -- addAchievement is the only real entry point.
+    cacheFor(userId).achievements = list;
   }
 
   function addAchievement(userId, achievement) {
-    const list = getAchievements(userId);
-    list.push(achievement);
-    saveAchievements(userId, list);
+    const list = getAchievements(userId).concat([achievement]);
+    cacheFor(userId).achievements = list;
+    db.from('achievements').insert({
+      id: achievement.id,
+      user_id: userId,
+      type: achievement.type,
+      lift: achievement.lift,
+      direction: achievement.direction,
+      start_value: achievement.startValue,
+      target_value: achievement.targetValue,
+      amount: achievement.amount,
+      unit: achievement.unit,
+      achieved_at: achievement.achievedAt,
+      tier: achievement.tier,
+    }).then(logIfError('addAchievement'));
     return list;
   }
 
-  // Whether this user has ever completed or skipped the onboarding tour --
-  // once true, it never auto-plays again.
+  // ---------- onboarding tour flag ----------
+
   function getTourSeen(userId) {
-    return localStorage.getItem(tourSeenKey(userId)) === 'true';
+    return cacheFor(userId).tourSeen;
   }
 
   function setTourSeen(userId) {
-    localStorage.setItem(tourSeenKey(userId), 'true');
+    cacheFor(userId).tourSeen = true;
+    db.from('settings').upsert({
+      user_id: userId,
+      tour_seen: true,
+    }, { onConflict: 'user_id' }).then(logIfError('setTourSeen'));
   }
 
-  // Custom theme overrides -- see App.Theme for how these get applied.
-  // Storing a partial object (only the changed keys) is fine; App.Theme
-  // always merges over its own defaults.
+  // ---------- theme (Settings page appearance) ----------
+
   function getTheme(userId) {
-    try {
-      const raw = JSON.parse(localStorage.getItem(themeKey(userId)));
-      return raw && typeof raw === 'object' ? raw : {};
-    } catch (e) {
-      return {};
-    }
+    return cacheFor(userId).theme;
   }
 
   function saveTheme(userId, theme) {
-    localStorage.setItem(themeKey(userId), JSON.stringify(theme));
+    cacheFor(userId).theme = theme;
+    db.from('themes').upsert({
+      user_id: userId,
+      bg: theme.bg,
+      surface: theme.surface,
+      accent: theme.accent,
+      text_color: theme.text,
+      density: theme.density,
+      view_style: theme.viewStyle,
+      font_size: theme.fontSize,
+    }, { onConflict: 'user_id' }).then(logIfError('saveTheme'));
+  }
+
+  // ---------- preload ----------
+
+  // Fetches everything for `userId` in one parallel batch and fills the
+  // cache. Must be awaited before any page that reads App.Storage renders
+  // -- see app.js (initial load) and Auth.js (right after login/signup).
+  function preloadAll(userId) {
+    return Promise.all([
+      db.from('entries').select('*').eq('user_id', userId),
+      db.from('settings').select('*').eq('user_id', userId).maybeSingle(),
+      db.from('profiles').select('*').eq('user_id', userId).maybeSingle(),
+      db.from('splits').select('*').eq('user_id', userId).maybeSingle(),
+      db.from('completions').select('*').eq('user_id', userId),
+      db.from('streaks').select('*').eq('user_id', userId).maybeSingle(),
+      db.from('bodyweight_log').select('*').eq('user_id', userId),
+      db.from('goals').select('*').eq('user_id', userId).maybeSingle(),
+      db.from('achievements').select('*').eq('user_id', userId),
+      db.from('themes').select('*').eq('user_id', userId).maybeSingle(),
+    ]).then(function (results) {
+      const [
+        entriesRes, settingsRes, profileRes, splitRes, completionsRes,
+        streakRes, bwLogRes, goalRes, achievementsRes, themeRes,
+      ] = results;
+
+      results.forEach(function (r, i) {
+        if (r.error) console.error('[Storage] preloadAll query ' + i + ' failed:', r.error);
+      });
+
+      const settingsRow = settingsRes.data;
+      const profileRow = profileRes.data;
+      const splitRow = splitRes.data;
+      const streakRow = streakRes.data;
+      const goalRow = goalRes.data;
+      const themeRow = themeRes.data;
+
+      cache[userId] = {
+        history: (entriesRes.data || []).map(entryFromRow),
+
+        settings: settingsRow ? compact({ displayUnit: settingsRow.display_unit, formDefaults: settingsRow.form_defaults }) : {},
+
+        profile: profileRow ? {
+          age: profileRow.age, bodyweight: profileRow.bodyweight, bodyweightUnit: profileRow.bodyweight_unit,
+          sex: profileRow.sex, daysPerWeek: profileRow.days_per_week, trainingWeekdays: profileRow.training_weekdays,
+          timePerSession: profileRow.time_per_session, experienceLevel: profileRow.experience_level,
+        } : null,
+
+        split: (splitRow && Array.isArray(splitRow.days)) ? { days: splitRow.days } : null,
+
+        completions: (completionsRes.data || []).map(function (row) {
+          return { date: row.date, dayOfWeek: row.day_of_week, completed: row.completed };
+        }),
+
+        streak: streakRow
+          ? { count: streakRow.count, creditedDates: streakRow.credited_dates || {}, lastCheckedDateKey: streakRow.last_checked_date_key }
+          : { count: 0, creditedDates: {}, lastCheckedDateKey: null },
+
+        bodyweightLog: (bwLogRes.data || []).map(function (row) {
+          return { date: row.date, weight: row.weight, unit: row.unit };
+        }),
+
+        goal: goalRow ? {
+          type: goalRow.type, direction: goalRow.direction, amount: goalRow.amount,
+          startWeight: goalRow.start_weight, targetWeight: goalRow.target_weight, unit: goalRow.unit,
+          lift: goalRow.lift, createdAt: goalRow.created_at, achieved: goalRow.achieved, achievedAt: goalRow.achieved_at,
+        } : null,
+
+        achievements: (achievementsRes.data || []).map(function (row) {
+          return {
+            id: row.id, type: row.type, lift: row.lift, direction: row.direction,
+            startValue: row.start_value, targetValue: row.target_value, amount: row.amount,
+            unit: row.unit, achievedAt: row.achieved_at, tier: row.tier,
+          };
+        }),
+
+        tourSeen: !!(settingsRow && settingsRow.tour_seen),
+
+        theme: themeRow ? compact({
+          bg: themeRow.bg, surface: themeRow.surface, accent: themeRow.accent, text: themeRow.text_color,
+          density: themeRow.density, viewStyle: themeRow.view_style, fontSize: themeRow.font_size,
+        }) : {},
+      };
+    });
   }
 
   return {
+    preloadAll,
     getHistory, saveHistory, addEntry, deleteEntry,
     getSettings, saveSettings,
     getProfile, saveProfile,

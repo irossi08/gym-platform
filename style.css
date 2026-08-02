@@ -963,6 +963,13 @@ a:focus-visible {
   line-height: 1.5;
 }
 
+.app-boot-hint {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  text-align: center;
+  padding: 80px 16px;
+}
+
 .result-label {
   margin: 0 0 4px;
   font-size: 0.85rem;
