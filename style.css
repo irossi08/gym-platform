@@ -25,6 +25,14 @@
   --gridline: #232323;
   --baseline: #3c3c3c;
 
+  /* Overridden at runtime by App.Theme (Settings page) -- these defaults
+     match the numbers the rules below used to hardcode, so nothing shifts
+     visually until someone actually changes the density in Settings. */
+  --density-card-padding: 18px;
+  --density-item-padding: 12px;
+  --density-field-gap: 14px;
+  --density-section-gap: 16px;
+
   --font-display: 'Bebas Neue', 'Oswald', system-ui, sans-serif;
   --font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
@@ -81,8 +89,8 @@ a:focus-visible {
   border: 1px solid var(--border);
   border-left: 3px solid var(--accent);
   border-radius: 14px;
-  padding: 18px;
-  margin-bottom: 16px;
+  padding: var(--density-card-padding);
+  margin-bottom: var(--density-section-gap);
   transition: border-color 0.2s ease, transform 0.2s ease;
 }
 
@@ -562,7 +570,7 @@ a:focus-visible {
 /* ---------- Form fields (shared) ---------- */
 
 .field {
-  margin-bottom: 14px;
+  margin-bottom: var(--density-field-gap);
 }
 
 .field-row {
@@ -1163,7 +1171,7 @@ a:focus-visible {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 12px 0 12px 10px;
+  padding: var(--density-item-padding) 0 var(--density-item-padding) 10px;
   margin-left: -10px;
   border-bottom: 1px solid var(--gridline);
   border-left: 2px solid transparent;
@@ -1757,16 +1765,16 @@ a:focus-visible {
   color: var(--text-secondary);
 }
 
-/* Home-only quick-jump row -- shortcuts alongside the hamburger menu, not
-   instead of it. */
-.home-quick-links {
+/* Quick-jump row on every protected page -- shortcuts to the OTHER pages,
+   alongside the hamburger menu, not instead of it. */
+.page-quick-links {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 16px;
 }
 
-.home-quick-link {
+.page-quick-link {
   border: 1px solid var(--border);
   border-radius: 999px;
   padding: 8px 14px;
@@ -1778,7 +1786,7 @@ a:focus-visible {
   transition: border-color 0.15s ease, color 0.15s ease;
 }
 
-.home-quick-link:hover {
+.page-quick-link:hover {
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -2319,7 +2327,7 @@ a:focus-visible {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 14px 0;
+  padding: var(--density-item-padding) 0;
   border-bottom: 1px solid var(--gridline);
 }
 
@@ -2510,4 +2518,173 @@ a:focus-visible {
   flex: 0 0 auto;
   min-height: 40px;
   padding: 0 22px;
+}
+
+/* ---------- Navbar menu: Settings + Log out ---------- */
+
+.navbar-menu-divider {
+  border-top: 1px solid var(--border);
+  margin: 4px 6px;
+}
+
+/* Log out lives in the dropdown as a button styled to match the <a> links
+   around it, not a form control -- needs its own resets since .navbar-link
+   assumes an anchor. */
+.navbar-menu-logout {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* ---------- Data view style: list (default) vs card (Settings) ---------- */
+
+body[data-view-style="card"] .history-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+body[data-view-style="card"] .history-item {
+  flex-direction: column;
+  align-items: flex-start;
+  margin-left: 0;
+  padding: var(--density-item-padding);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+body[data-view-style="card"] .history-item:hover {
+  border-color: var(--accent);
+}
+
+body[data-view-style="card"] .history-item-side {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: 8px;
+}
+
+body[data-view-style="card"] .achievements-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+body[data-view-style="card"] .achievement-item {
+  flex-direction: column;
+  align-items: flex-start;
+  padding: var(--density-item-padding);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+body[data-view-style="card"] .achievement-tier-label {
+  margin-top: 8px;
+}
+
+body[data-view-style="card"] .ex-picker-panel .ex-picker-group {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+
+body[data-view-style="card"] .ex-picker-group-label {
+  grid-column: 1 / -1;
+}
+
+body[data-view-style="card"] .ex-picker-option {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  text-align: center;
+  padding: 12px 8px;
+}
+
+/* ---------- Settings page ---------- */
+
+.settings-section-label {
+  margin: 0 0 4px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.settings-color-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--gridline);
+}
+
+.settings-color-field:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.settings-color-field label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.settings-color-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.settings-color-input-wrap input[type="color"] {
+  width: 42px;
+  height: 34px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  cursor: pointer;
+}
+
+.settings-color-hex {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  min-width: 64px;
+  text-transform: uppercase;
+}
+
+.settings-layout-field {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--gridline);
+}
+
+.settings-layout-field:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.settings-layout-label {
+  margin: 0 0 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.settings-reset-btn {
+  width: 100%;
+  border-color: var(--status-critical);
+  color: var(--status-critical);
+}
+
+.settings-reset-btn:hover {
+  background: rgba(255, 77, 77, 0.1);
+  border-color: var(--status-critical);
+  color: var(--status-critical);
 }

@@ -49,6 +49,7 @@ App.Pages.OneRepMax = (function () {
             '<button type="button" class="unit-toggle-btn" data-unit="lb">lb</button>' +
           '</div>' +
         '</div>' +
+        '<div id="orm-quick-links"></div>' +
         '<div class="card" id="info-panel-container"></div>' +
         '<div class="card" id="lift-form-container"></div>' +
         '<div class="card" id="result-container"></div>' +
@@ -64,6 +65,7 @@ App.Pages.OneRepMax = (function () {
     };
 
     App.Components.StreakBadge.render(container.querySelector('#orm-streak-badge'), user);
+    App.Components.QuickLinks.render(container.querySelector('#orm-quick-links'), user, 'one-rep-max');
 
     function saveSettings() {
       App.Storage.saveSettings(user.id, { displayUnit: state.displayUnit, formDefaults: state.formDefaults });

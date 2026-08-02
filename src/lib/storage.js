@@ -13,6 +13,7 @@ App.Storage = (function () {
   function goalKey(userId) { return 'orm_goal_' + userId; }
   function achievementsKey(userId) { return 'orm_achievements_' + userId; }
   function tourSeenKey(userId) { return 'orm_tour_seen_' + userId; }
+  function themeKey(userId) { return 'orm_theme_' + userId; }
 
   function makeId() {
     if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
@@ -190,6 +191,22 @@ App.Storage = (function () {
     localStorage.setItem(tourSeenKey(userId), 'true');
   }
 
+  // Custom theme overrides -- see App.Theme for how these get applied.
+  // Storing a partial object (only the changed keys) is fine; App.Theme
+  // always merges over its own defaults.
+  function getTheme(userId) {
+    try {
+      const raw = JSON.parse(localStorage.getItem(themeKey(userId)));
+      return raw && typeof raw === 'object' ? raw : {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function saveTheme(userId, theme) {
+    localStorage.setItem(themeKey(userId), JSON.stringify(theme));
+  }
+
   return {
     getHistory, saveHistory, addEntry, deleteEntry,
     getSettings, saveSettings,
@@ -201,5 +218,6 @@ App.Storage = (function () {
     getGoal, saveGoal, clearGoal,
     getAchievements, saveAchievements, addAchievement,
     getTourSeen, setTourSeen,
+    getTheme, saveTheme,
   };
 })();

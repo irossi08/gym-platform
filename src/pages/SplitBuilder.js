@@ -60,6 +60,7 @@ App.Pages.SplitBuilder = (function () {
         '<div class="page-header">' +
           '<div class="page-title-row"><h1 class="page-title">Build My Split</h1><div id="sb-streak-badge"></div></div>' +
         '</div>' +
+        '<div id="sb-quick-links"></div>' +
         '<div class="card">' +
           '<p class="split-intro">Answer a few questions and get a full weekly training split — pick from ' + '22 exercises, fully editable afterward.</p>' +
           '<form class="split-form" novalidate>' +
@@ -130,6 +131,7 @@ App.Pages.SplitBuilder = (function () {
       '</section>';
 
     App.Components.StreakBadge.render(container.querySelector('#sb-streak-badge'), user);
+    App.Components.QuickLinks.render(container.querySelector('#sb-quick-links'), user, 'split-builder');
 
     const form = container.querySelector('.split-form');
     form.addEventListener('submit', function (e) {
@@ -354,14 +356,16 @@ App.Pages.SplitBuilder = (function () {
     container.innerHTML =
       '<section class="page page-split">' +
         '<div class="page-header">' +
-          '<div class="page-title-row"><h1 class="page-title">Your Split</h1><div id="sb-streak-badge"></div></div>' +
+          '<div class="page-title-row"><h1 class="page-title">Build My Split</h1><div id="sb-streak-badge"></div></div>' +
         '</div>' +
+        '<div id="sb-quick-links"></div>' +
         '<p class="split-disclaimer">A rule-based weekly template from your answers, not personalized coaching — sets, reps, and rest are starting points, edit anything below.</p>' +
         dayCardsHtml +
         '<button type="button" class="btn-ghost" id="sb-regenerate">Regenerate</button>' +
       '</section>';
 
     App.Components.StreakBadge.render(container.querySelector('#sb-streak-badge'), user);
+    App.Components.QuickLinks.render(container.querySelector('#sb-quick-links'), user, 'split-builder');
 
     container.querySelectorAll('.ex-row-toggle').forEach(function (btn) {
       btn.addEventListener('click', function () {

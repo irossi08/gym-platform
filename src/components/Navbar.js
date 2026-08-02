@@ -48,12 +48,18 @@ App.Components.Navbar = (function () {
       // Hidden entirely until the first goal is reached -- there's nothing
       // to show there before that, so no point advertising an empty page.
       const hasAchievements = App.Storage.getAchievements(user.id).length > 0;
-      const menuLinksHtml =
+      const pageLinksHtml =
         link('#/home', 'Home', 'home', activeRoute) +
         link('#/one-rep-max', '1 Rep Max', 'one-rep-max', activeRoute) +
         link('#/history', 'History', 'history', activeRoute) +
         link('#/split-builder', 'Build My Split', 'split-builder', activeRoute) +
         (hasAchievements ? link('#/achievements', 'Achievements', 'achievements', activeRoute) : '');
+
+      const menuHtml =
+        pageLinksHtml +
+        '<div class="navbar-menu-divider"></div>' +
+        link('#/settings', 'Settings', 'settings', activeRoute) +
+        '<button type="button" class="navbar-link navbar-menu-logout" id="navbar-logout">Log out</button>';
 
       bodyHtml =
         '<div class="navbar-left">' +
@@ -63,13 +69,12 @@ App.Components.Navbar = (function () {
               '<span class="navbar-hamburger-line"></span>' +
               '<span class="navbar-hamburger-line"></span>' +
             '</button>' +
-            '<div class="navbar-menu" role="menu"><div class="navbar-menu-inner">' + menuLinksHtml + '</div></div>' +
+            '<div class="navbar-menu" role="menu"><div class="navbar-menu-inner">' + menuHtml + '</div></div>' +
           '</div>' +
           '<a href="#/" class="navbar-brand">1RM<span class="navbar-brand-accent">TRACKER</span></a>' +
         '</div>' +
         '<div class="navbar-right">' +
           '<span class="navbar-user">' + escapeHtml(user.username) + '</span>' +
-          '<button type="button" class="btn-ghost-sm" id="navbar-logout">Log out</button>' +
         '</div>';
     } else {
       bodyHtml =

@@ -1,7 +1,7 @@
 window.App = window.App || {};
 
 App.Router = (function () {
-  const PROTECTED = ['home', 'one-rep-max', 'history', 'split-builder', 'achievements'];
+  const PROTECTED = ['home', 'one-rep-max', 'history', 'split-builder', 'achievements', 'settings'];
   let navEl, rootEl;
   let lastUser = null, lastRoute = null;
 
@@ -16,6 +16,13 @@ App.Router = (function () {
   function handleRouteChange() {
     const route = parseRoute();
     const user = App.Auth.getCurrentUser();
+
+    // The whole app is built on CSS custom properties, so a logged-in
+    // user's custom theme (or the default) just needs to be re-applied on
+    // every navigation -- covers initial load, login, logout, and
+    // switching accounts in one place, no separate hook needed anywhere
+    // else.
+    App.Theme.applyTheme(user ? App.Storage.getTheme(user.id) : App.Theme.DEFAULTS);
 
     if (PROTECTED.indexOf(route) !== -1 && !user) {
       navigate('login');
@@ -63,6 +70,8 @@ App.Router = (function () {
       App.Pages.SplitBuilder.render(rootEl, { user: user });
     } else if (route === 'achievements') {
       App.Pages.Achievements.render(rootEl, { user: user });
+    } else if (route === 'settings') {
+      App.Pages.Settings.render(rootEl, { user: user });
     } else {
       App.Pages.Landing.render(rootEl, {});
     }

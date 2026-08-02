@@ -20,6 +20,7 @@ App.Pages.History = (function () {
             '<button type="button" class="unit-toggle-btn" data-unit="lb">lb</button>' +
           '</div>' +
         '</div>' +
+        '<div id="history-quick-links"></div>' +
         '<div class="card" id="history-container"></div>' +
         '<div class="card" id="chart-container"></div>' +
       '</section>';
@@ -31,6 +32,7 @@ App.Pages.History = (function () {
     };
 
     App.Components.StreakBadge.render(container.querySelector('#history-streak-badge'), user);
+    App.Components.QuickLinks.render(container.querySelector('#history-quick-links'), user, 'history');
 
     function saveSettings() {
       App.Storage.saveSettings(user.id, Object.assign({}, App.Storage.getSettings(user.id), { displayUnit: state.displayUnit }));

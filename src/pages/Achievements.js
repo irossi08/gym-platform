@@ -48,10 +48,12 @@ App.Pages.Achievements = (function () {
         '<div class="page-header">' +
           '<div class="page-title-row"><h1 class="page-title">Achievements</h1><div id="achievements-streak-badge"></div></div>' +
         '</div>' +
+        '<div id="achievements-quick-links"></div>' +
         '<div class="card">' + listHtml + '</div>' +
       '</section>';
 
     App.Components.StreakBadge.render(container.querySelector('#achievements-streak-badge'), user);
+    App.Components.QuickLinks.render(container.querySelector('#achievements-quick-links'), user, 'achievements');
   }
 
   return { render };

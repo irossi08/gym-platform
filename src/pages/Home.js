@@ -382,28 +382,18 @@ App.Pages.Home = (function () {
   function render(container, opts) {
     const user = opts.user;
 
-    // Convenience shortcuts specific to Home -- the hamburger menu remains
-    // the actual navigation on every page; this is just a quick-jump row,
-    // same unlock condition as the Achievements nav link.
-    const hasAchievements = App.Storage.getAchievements(user.id).length > 0;
-    const quickLinksHtml =
-      '<div class="home-quick-links">' +
-        '<a href="#/one-rep-max" class="home-quick-link">1 Rep Max</a>' +
-        '<a href="#/history" class="home-quick-link">History</a>' +
-        '<a href="#/split-builder" class="home-quick-link">Build My Split</a>' +
-        (hasAchievements ? '<a href="#/achievements" class="home-quick-link">Achievements</a>' : '') +
-      '</div>';
-
     container.innerHTML =
       '<section class="page page-home">' +
         '<div class="page-header">' +
           '<div class="page-title-row"><h1 class="page-title">Home</h1><div id="home-streak-badge"></div></div>' +
         '</div>' +
-        quickLinksHtml +
+        '<div id="home-quick-links"></div>' +
         '<div class="card" id="home-goal-container"></div>' +
         '<div class="card" id="home-today-container"></div>' +
         '<div class="card" id="home-trend-container"></div>' +
       '</section>';
+
+    App.Components.QuickLinks.render(container.querySelector('#home-quick-links'), user, 'home');
 
     const streakBadgeEl = container.querySelector('#home-streak-badge');
     const goalEl = container.querySelector('#home-goal-container');
