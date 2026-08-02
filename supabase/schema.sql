@@ -7,6 +7,11 @@
 --
 -- Auth itself needs no table here -- Supabase's built-in auth.users handles
 -- signup/login, and every table below just references auth.users(id).
+--
+-- Safe to run more than once: every CREATE TABLE uses IF NOT EXISTS, and
+-- every policy is dropped first (IF EXISTS) before being recreated, since
+-- Postgres has no CREATE POLICY IF NOT EXISTS -- re-running this without
+-- the DROP would fail on "policy already exists" for every table.
 
 create extension if not exists pgcrypto;
 
@@ -25,6 +30,7 @@ create table if not exists public.profiles (
 );
 
 alter table public.profiles enable row level security;
+drop policy if exists "profiles_owner" on public.profiles;
 create policy "profiles_owner" on public.profiles
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
@@ -47,6 +53,7 @@ create table if not exists public.entries (
 );
 
 alter table public.entries enable row level security;
+drop policy if exists "entries_owner" on public.entries;
 create policy "entries_owner" on public.entries
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create index if not exists entries_user_id_idx on public.entries (user_id);
@@ -60,6 +67,7 @@ create table if not exists public.settings (
 );
 
 alter table public.settings enable row level security;
+drop policy if exists "settings_owner" on public.settings;
 create policy "settings_owner" on public.settings
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
@@ -71,6 +79,7 @@ create table if not exists public.splits (
 );
 
 alter table public.splits enable row level security;
+drop policy if exists "splits_owner" on public.splits;
 create policy "splits_owner" on public.splits
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
@@ -84,6 +93,7 @@ create table if not exists public.completions (
 );
 
 alter table public.completions enable row level security;
+drop policy if exists "completions_owner" on public.completions;
 create policy "completions_owner" on public.completions
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
@@ -96,6 +106,7 @@ create table if not exists public.streaks (
 );
 
 alter table public.streaks enable row level security;
+drop policy if exists "streaks_owner" on public.streaks;
 create policy "streaks_owner" on public.streaks
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
@@ -109,6 +120,7 @@ create table if not exists public.bodyweight_log (
 );
 
 alter table public.bodyweight_log enable row level security;
+drop policy if exists "bodyweight_log_owner" on public.bodyweight_log;
 create policy "bodyweight_log_owner" on public.bodyweight_log
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create index if not exists bodyweight_log_user_id_idx on public.bodyweight_log (user_id);
@@ -129,6 +141,7 @@ create table if not exists public.goals (
 );
 
 alter table public.goals enable row level security;
+drop policy if exists "goals_owner" on public.goals;
 create policy "goals_owner" on public.goals
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
@@ -148,6 +161,7 @@ create table if not exists public.achievements (
 );
 
 alter table public.achievements enable row level security;
+drop policy if exists "achievements_owner" on public.achievements;
 create policy "achievements_owner" on public.achievements
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create index if not exists achievements_user_id_idx on public.achievements (user_id);
@@ -165,15 +179,15 @@ create table if not exists public.themes (
 );
 
 alter table public.themes enable row level security;
+drop policy if exists "themes_owner" on public.themes;
 create policy "themes_owner" on public.themes
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- ---------- verification ----------
 -- Run this separately after the script above to confirm, from Postgres's
--- own catalog (not the SQL Editor's pre-run warning banner, which fires
--- any time it sees CREATE TABLE regardless of whether RLS is enabled
--- later in the same script -- a known false positive, not a real signal).
--- Every row here should show rowsecurity = true.
+-- own catalog (not the SQL Editor's pre-run warning banner, which can fire
+-- on partial/re-runs or stale query text rather than the actual state of
+-- your database). Every row here should show rowsecurity = true.
 --
 -- select schemaname, tablename, rowsecurity
 -- from pg_tables
