@@ -3452,3 +3452,34 @@ body[data-view-style="card"] .ex-picker-option {
   font-size: 0.78rem;
   color: var(--text-secondary);
 }
+
+/* ---------- Community section identity (amber/orange) ----------
+   Every shared component (.card, .btn-primary, .section-title::after,
+   focus rings, etc.) already reads var(--accent)/--accent-rgb/--accent-ink/
+   --accent-glow rather than a hardcoded color -- redefining those four
+   variables on the section's own root class is enough to reskin the whole
+   area without touching a single shared rule. This intentionally overrides
+   whatever accent the user picked in Settings while inside this section,
+   on purpose: the point is a fixed, distinct identity ("a different
+   space"), not a themed variant of it. Scoped to these 3 page roots only,
+   so the navbar and any document.body-level overlay (modals, tour, goal
+   celebration) stay the app's normal color. */
+.page-community,
+.page-community-detail,
+.page-challenge-detail {
+  --accent: #ff8a1e;
+  --accent-rgb: 255, 138, 30;
+  --accent-ink: #0a0a0a;
+  --accent-glow: rgba(255, 138, 30, 0.35);
+  animation: communitySectionEnter 0.4s ease;
+}
+
+/* Opacity-only, deliberately not `filter` -- filter (even mid-animation)
+   establishes a new containing block for any `position: fixed` descendant,
+   which would briefly misplace .page-quick-links' fixed bottom bar that
+   lives inside this section. Plain opacity avoids that entirely while
+   still reading as a fade-in entrance. */
+@keyframes communitySectionEnter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

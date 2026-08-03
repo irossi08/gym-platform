@@ -114,6 +114,20 @@ App.Pages.Community = (function () {
         '</ul>'
       : '<p class="empty-hint">You haven’t joined any communities yet.</p>';
 
+    const hasPublicId = !!(profile && profile.publicId);
+    if (!hasPublicId) {
+      console.warn(
+        '[Community] profile.publicId is missing. Most likely causes: (1) the ' +
+        'public_id migration in supabase/schema.sql hasn’t been run against ' +
+        'this project yet, or (2) it was run, but this browser session’s ' +
+        'profile was cached (via preloadAll) before that happened -- a full ' +
+        'page refresh (or logging out and back in) re-fetches the profile row ' +
+        'and should pick it up. Run `select user_id, public_id from public.' +
+        'profiles;` in the Supabase SQL Editor to check whether the column ' +
+        'exists and is populated.'
+      );
+    }
+
     container.innerHTML =
       '<section class="page page-community">' +
         '<div class="page-header"><h1 class="page-title">Community</h1></div>' +
@@ -121,11 +135,15 @@ App.Pages.Community = (function () {
         joinBannerHtml +
         '<div class="card">' +
           '<h2 class="section-title">Your ID</h2>' +
-          '<div class="community-id-row">' +
-            '<span class="community-id-value">' + escapeHtml(profile && profile.publicId ? profile.publicId : '—') + '</span>' +
-            '<button type="button" class="btn-ghost-sm" id="community-id-copy">Copy</button>' +
-          '</div>' +
-          '<p class="field-hint">Share this with a friend so they can add you.</p>' +
+          (hasPublicId
+            ? '<div class="community-id-row">' +
+                '<span class="community-id-value">' + escapeHtml(profile.publicId) + '</span>' +
+                '<button type="button" class="btn-ghost-sm" id="community-id-copy">Copy</button>' +
+              '</div>' +
+              '<p class="field-hint">Share this with a friend so they can add you.</p>'
+            : '<p class="field-hint">Your ID isn’t available yet — try refreshing the page. ' +
+              'If that doesn’t help, check the browser console for details.</p>'
+          ) +
         '</div>' +
         '<div class="card">' +
           '<h2 class="section-title">Friends</h2>' +
@@ -172,6 +190,7 @@ App.Pages.Community = (function () {
 
   function wireIdCopy(container, profile) {
     const btn = container.querySelector('#community-id-copy');
+    if (!btn) return;
     btn.addEventListener('click', function () {
       if (!profile || !profile.publicId) return;
       const done = function () { btn.textContent = 'Copied!'; setTimeout(function () { btn.textContent = 'Copy'; }, 1500); };
