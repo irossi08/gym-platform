@@ -189,7 +189,8 @@ App.Components.ExercisePicker = (function () {
       }
 
       addArea.querySelectorAll('.ex-picker-add-btn[data-add-key]').forEach(function (btn) {
-        btn.addEventListener('click', function () {
+        btn.addEventListener('click', function (e) {
+          e.stopPropagation();
           const key = btn.dataset.addKey;
           App.Storage.addUserAddedExercise(userId, key);
           finalizeSelection(key);
@@ -197,7 +198,16 @@ App.Components.ExercisePicker = (function () {
       });
       const openCustomBtn = addArea.querySelector('#ex-picker-open-custom');
       if (openCustomBtn) {
-        openCustomBtn.addEventListener('click', function () { renderCustomForm(query.trim()); });
+        // Without stopping propagation here, this click bubbles up to the
+        // document-level "click outside closes the picker" listener *after*
+        // renderCustomForm() has already replaced addArea's innerHTML --
+        // by then this button is detached from the DOM, so
+        // e.target.closest('.ex-picker') finds nothing and the whole panel
+        // gets wrongly closed instead of showing the custom-exercise form.
+        openCustomBtn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          renderCustomForm(query.trim());
+        });
       }
     }
 
@@ -241,10 +251,12 @@ App.Components.ExercisePicker = (function () {
           '</div>' +
         '</div>';
 
-      addArea.querySelector('#' + id + '-custom-cancel').addEventListener('click', function () {
+      addArea.querySelector('#' + id + '-custom-cancel').addEventListener('click', function (e) {
+        e.stopPropagation();
         renderAddArea(searchInput.value);
       });
-      addArea.querySelector('#' + id + '-custom-save').addEventListener('click', function () {
+      addArea.querySelector('#' + id + '-custom-save').addEventListener('click', function (e) {
+        e.stopPropagation();
         const nameInput = addArea.querySelector('#' + id + '-custom-name');
         const primarySelect = addArea.querySelector('#' + id + '-custom-primary');
         const secondarySelect = addArea.querySelector('#' + id + '-custom-secondary');
