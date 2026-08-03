@@ -35,7 +35,7 @@ App.Pages.ChallengeDetail = (function () {
     const user = opts.user;
     const challengeId = opts.challengeId;
 
-    container.innerHTML = '<section class="page page-challenge-detail"><p class="app-boot-hint">Loading…</p></section>';
+    container.innerHTML = '<section class="page page-challenge-detail is-loading"><p class="app-boot-hint">Loading…</p></section>';
 
     Promise.all([
       App.Challenges.getChallenge(challengeId),
@@ -47,14 +47,24 @@ App.Pages.ChallengeDetail = (function () {
         container.innerHTML = '<section class="page page-challenge-detail"><p class="empty-hint">Challenge not found.</p></section>';
         return;
       }
+      // Paint with what's already fetched immediately -- don't make the
+      // first render wait on a round trip to WRITE this user's own
+      // progress plus another to re-read the challenge afterward. That
+      // refresh (needed to self-heal a race finish -- see
+      // App.Challenges.maybeFinalizeRace) still happens, just in the
+      // background, and only triggers a second render if something the
+      // page actually shows changed.
+      renderPage(container, user, challenge, participants);
+
       const mineIdx = participants.findIndex(function (p) { return p.userId === user.id; });
-      if (mineIdx === -1 || participants[mineIdx].status !== 'accepted' || challenge.endedAt) {
-        renderPage(container, user, challenge, participants);
-        return;
-      }
+      if (mineIdx === -1 || participants[mineIdx].status !== 'accepted' || challenge.endedAt) return;
+
       App.Challenges.refreshMyProgress(user, challenge, participants[mineIdx]).then(function (updatedMine) {
-        participants[mineIdx] = updatedMine;
         App.Challenges.getChallenge(challengeId).then(function (freshChallenge) {
+          const valueChanged = updatedMine.currentValue !== participants[mineIdx].currentValue;
+          const justEnded = freshChallenge && freshChallenge.endedAt && !challenge.endedAt;
+          if (!valueChanged && !justEnded) return;
+          participants[mineIdx] = updatedMine;
           renderPage(container, user, freshChallenge || challenge, participants);
         });
       });
@@ -133,10 +143,10 @@ App.Pages.ChallengeDetail = (function () {
         '</div>' +
       '</section>';
 
-    ranked.forEach(function (p) {
+    App.Components.Avatar.renderList(ranked.map(function (p) {
       const row = container.querySelector('.challenge-leaderboard-row[data-user-id="' + p.userId + '"]');
-      if (row) App.Components.Avatar.render(row.querySelector('.challenge-leaderboard-avatar'), p.profile);
-    });
+      return { container: row ? row.querySelector('.challenge-leaderboard-avatar') : null, profile: p.profile };
+    }));
 
     App.Components.QuickLinks.render(container.querySelector('#ch-quick-links'), user, 'community');
 

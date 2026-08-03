@@ -39,12 +39,13 @@ App.Social = (function () {
   // simply comes back missing from the map, which callers treat as "name
   // unavailable" rather than erroring.
   //
-  // Also resolves a signed photo URL for every 'upload'-type profile in ONE
-  // batched request (App.Storage.getProfilePhotoUrls), attached as
-  // `resolvedPhotoUrl` -- centralizing this here means every caller
-  // (friends list, community members, challenge leaderboard) gets it for
-  // free instead of each firing its own N separate signed-url requests,
-  // which was the main cause of slow loads on the Community pages.
+  // Deliberately does NOT also resolve photo signed URLs here -- an
+  // earlier version did, but that made this a 3-step serial chain
+  // (friend_requests/members -> profiles -> signed urls) that blocked the
+  // ENTIRE page (names, buttons, everything) on a third mobile-network
+  // round trip before any of it could render. Signed-url resolution is a
+  // separate, non-blocking pass -- see App.Components.Avatar.renderList,
+  // which callers run AFTER painting the list with this data.
   function profilesForUserIds(userIds) {
     const unique = Array.from(new Set(userIds));
     if (unique.length === 0) return Promise.resolve({});
@@ -52,18 +53,9 @@ App.Social = (function () {
       .select('user_id, name, profile_picture_type, profile_picture_url, preset_avatar_id')
       .in('user_id', unique)
       .then(function (res) {
-        const rows = (res.data || []).map(profileRowToObj);
-        const uploadPaths = rows
-          .filter(function (r) { return r.profilePictureType === 'upload' && r.profilePictureUrl; })
-          .map(function (r) { return r.profilePictureUrl; });
-        return App.Storage.getProfilePhotoUrls(uploadPaths).then(function (urlMap) {
-          const map = {};
-          rows.forEach(function (r) {
-            if (r.profilePictureType === 'upload' && r.profilePictureUrl) r.resolvedPhotoUrl = urlMap[r.profilePictureUrl] || null;
-            map[r.userId] = r;
-          });
-          return map;
-        });
+        const map = {};
+        (res.data || []).forEach(function (row) { map[row.user_id] = profileRowToObj(row); });
+        return map;
       });
   }
 

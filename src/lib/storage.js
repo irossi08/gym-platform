@@ -172,14 +172,52 @@ App.Storage = (function () {
 
   const PROFILE_PHOTOS_BUCKET = 'profile-photos';
 
+  // A photo straight off a phone camera can be several MB -- avatars only
+  // ever display at a few dozen pixels across (Home's profile card,
+  // friends list, community members, challenge leaderboard), so uploading
+  // the original at full resolution means every one of those views
+  // downloads the whole multi-MB file just to shrink it in CSS. Resizing
+  // to a modest max dimension and re-encoding as JPEG client-side, before
+  // upload, fixes that at the source for every future viewer at once.
+  const MAX_PHOTO_DIMENSION = 320;
+
+  function resizeImageFile(file, maxDim) {
+    return new Promise(function (resolve, reject) {
+      const objectUrl = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = function () {
+        URL.revokeObjectURL(objectUrl);
+        let width = img.naturalWidth, height = img.naturalHeight;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) { height = Math.round(height * (maxDim / width)); width = maxDim; }
+          else { width = Math.round(width * (maxDim / height)); height = maxDim; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        canvas.toBlob(function (blob) {
+          if (blob) resolve(blob); else reject(new Error('Could not process image.'));
+        }, 'image/jpeg', 0.85);
+      };
+      img.onerror = function () {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error('Could not read image.'));
+      };
+      img.src = objectUrl;
+    });
+  }
+
   // Fixed path per user (no extension) so a re-upload always replaces the
   // previous photo in place instead of leaving orphaned files behind;
   // contentType on the upload carries the real image type for display.
   function uploadProfilePhoto(userId, file) {
     const path = userId + '/photo';
-    return db.storage.from(PROFILE_PHOTOS_BUCKET).upload(path, file, {
-      upsert: true,
-      contentType: file.type || 'image/jpeg',
+    return resizeImageFile(file, MAX_PHOTO_DIMENSION).then(function (resized) {
+      return db.storage.from(PROFILE_PHOTOS_BUCKET).upload(path, resized, {
+        upsert: true,
+        contentType: 'image/jpeg',
+      });
     }).then(function (res) {
       if (res.error) {
         console.error('[Storage] uploadProfilePhoto failed:', res.error);

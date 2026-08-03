@@ -33,7 +33,7 @@ App.Pages.CommunityDetail = (function () {
     const user = opts.user;
     const communityId = opts.communityId;
 
-    container.innerHTML = '<section class="page page-community-detail"><p class="app-boot-hint">Loading…</p></section>';
+    container.innerHTML = '<section class="page page-community-detail is-loading"><p class="app-boot-hint">Loading…</p></section>';
 
     Promise.all([
       App.Communities.getCommunity(communityId),
@@ -120,10 +120,10 @@ App.Pages.CommunityDetail = (function () {
         '</div>' +
       '</section>';
 
-    members.forEach(function (m) {
+    App.Components.Avatar.renderList(members.map(function (m) {
       const row = container.querySelector('.community-person-row[data-user-id="' + m.userId + '"]');
-      if (row) App.Components.Avatar.render(row.querySelector('.community-person-avatar'), m.profile);
-    });
+      return { container: row ? row.querySelector('.community-person-avatar') : null, profile: m.profile };
+    }));
 
     App.Components.QuickLinks.render(container.querySelector('#cd-quick-links'), user, 'community');
 

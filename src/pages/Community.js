@@ -23,7 +23,7 @@ App.Pages.Community = (function () {
     const user = opts.user;
     const joinCode = opts.joinCode;
 
-    container.innerHTML = '<section class="page page-community"><p class="app-boot-hint">Loading…</p></section>';
+    container.innerHTML = '<section class="page page-community is-loading"><p class="app-boot-hint">Loading…</p></section>';
 
     const joinStep = joinCode
       ? App.Communities.joinByCode(joinCode).then(function (res) { return res; })
@@ -174,13 +174,16 @@ App.Pages.Community = (function () {
         '</div>' +
       '</section>';
 
-    // Avatar thumbnails, rendered async into their placeholder slots.
-    container.querySelectorAll('.community-person-row').forEach(function (row) {
-      const requestId = row.dataset.requestId;
-      const all = fd.friends.concat(fd.incoming, fd.outgoing);
-      const entry = all.find(function (r) { return String(r.requestId) === requestId; });
-      if (entry) App.Components.Avatar.render(row.querySelector('.community-person-avatar'), entry.profile);
-    });
+    // Avatar thumbnails -- one batched signed-url request for the whole
+    // list rather than N per-row ones, fired only after the list itself
+    // (names, buttons) is already painted.
+    const all = fd.friends.concat(fd.incoming, fd.outgoing);
+    App.Components.Avatar.renderList(
+      Array.prototype.map.call(container.querySelectorAll('.community-person-row'), function (row) {
+        const entry = all.find(function (r) { return String(r.requestId) === row.dataset.requestId; });
+        return { container: row.querySelector('.community-person-avatar'), profile: entry && entry.profile };
+      })
+    );
 
     App.Components.QuickLinks.render(container.querySelector('#community-quick-links'), user, 'community');
     wireIdCopy(container, profile);

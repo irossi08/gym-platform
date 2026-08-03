@@ -3500,3 +3500,16 @@ body[data-view-style="card"] .ex-picker-option {
   from { opacity: 0; }
   to { opacity: 1; }
 }
+
+/* The initial "Loading…" placeholder uses this same section class (so the
+   amber accent applies immediately, with no flash of pink) but must NOT
+   also carry the fade -- a 0.4s animation on the placeholder itself would
+   delay even the loading text's visibility, and then run a SECOND time
+   once real content replaces it. is-loading suppresses it for exactly the
+   placeholder; the real content (rendered without this class) still fades
+   in once, on its own single mount. */
+.page-community.is-loading,
+.page-community-detail.is-loading,
+.page-challenge-detail.is-loading {
+  animation: none;
+}
