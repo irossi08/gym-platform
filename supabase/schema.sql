@@ -40,6 +40,19 @@ alter table public.profiles add column if not exists profile_picture_type text;
 alter table public.profiles add column if not exists profile_picture_url text;
 alter table public.profiles add column if not exists preset_avatar_id text;
 
+-- Unique shareable 8-char ID (used to find and add friends). Added as a
+-- plain nullable column first, backfilled for any existing rows, THEN
+-- given a default and a unique index -- doing it in that order means this
+-- is safe to re-run and also safe against a table that already has rows
+-- from before this feature existed (a one-shot "add column with a default"
+-- would only backfill existing rows if the default expression itself runs
+-- per-row, which it does here since gen_random_uuid() is volatile, but
+-- splitting the steps out keeps each one independently idempotent).
+alter table public.profiles add column if not exists public_id text;
+update public.profiles set public_id = upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 8)) where public_id is null;
+alter table public.profiles alter column public_id set default (upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 8)));
+create unique index if not exists profiles_public_id_idx on public.profiles (public_id);
+
 alter table public.profiles enable row level security;
 drop policy if exists "profiles_owner" on public.profiles;
 create policy "profiles_owner" on public.profiles
@@ -233,6 +246,320 @@ create policy "user_custom_exercises_owner" on public.user_custom_exercises
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create index if not exists user_custom_exercises_user_id_idx on public.user_custom_exercises (user_id);
 
+-- ==================== Community & Challenges ====================
+
+-- ---------- friend_requests (doubles as the friendships table -- an
+-- accepted row *is* the friendship. Declining or unfriending is just a
+-- delete, so there's never a "declined" status to clean up, and no
+-- separate friendships table copying rows over on accept.) ----------
+create table if not exists public.friend_requests (
+  id uuid primary key default gen_random_uuid(),
+  sender_id uuid not null references auth.users(id) on delete cascade,
+  recipient_id uuid not null references auth.users(id) on delete cascade,
+  status text not null default 'pending' check (status in ('pending', 'accepted')),
+  created_at timestamptz not null default now(),
+  responded_at timestamptz,
+  constraint friend_requests_no_self check (sender_id <> recipient_id)
+);
+
+-- One row per unordered pair regardless of who sent it -- least/greatest
+-- normalizes (a,b) and (b,a) to the same key so a duplicate request in
+-- either direction is rejected outright.
+create unique index if not exists friend_requests_pair_idx
+  on public.friend_requests (least(sender_id, recipient_id), greatest(sender_id, recipient_id));
+create index if not exists friend_requests_recipient_idx on public.friend_requests (recipient_id);
+create index if not exists friend_requests_sender_idx on public.friend_requests (sender_id);
+
+alter table public.friend_requests enable row level security;
+
+drop policy if exists "friend_requests_select" on public.friend_requests;
+create policy "friend_requests_select" on public.friend_requests
+  for select using (auth.uid() = sender_id or auth.uid() = recipient_id);
+
+drop policy if exists "friend_requests_insert" on public.friend_requests;
+create policy "friend_requests_insert" on public.friend_requests
+  for insert with check (auth.uid() = sender_id);
+
+-- Only the recipient can accept -- there's no "decline" update, that's a
+-- delete instead (see the delete policy below).
+drop policy if exists "friend_requests_update" on public.friend_requests;
+create policy "friend_requests_update" on public.friend_requests
+  for update using (auth.uid() = recipient_id) with check (auth.uid() = recipient_id);
+
+-- Either side can remove the row: the sender cancelling a pending request,
+-- the recipient declining one, or either party unfriending an accepted one.
+drop policy if exists "friend_requests_delete" on public.friend_requests;
+create policy "friend_requests_delete" on public.friend_requests
+  for delete using (auth.uid() = sender_id or auth.uid() = recipient_id);
+
+-- ---------- communities ----------
+create table if not exists public.communities (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  visibility text not null check (visibility in ('public', 'private')),
+  invite_code text not null default encode(gen_random_bytes(6), 'hex'),
+  created_by uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
+create unique index if not exists communities_invite_code_idx on public.communities (invite_code);
+
+alter table public.communities enable row level security;
+
+-- Basic community metadata (name/visibility/invite_code/creator) isn't
+-- sensitive by itself, so any signed-in user can read any row by id.
+-- Privacy for a private community comes from two other places instead: (1)
+-- the app's own directory/browse query only ever filters on
+-- visibility = 'public', so a private community is never listed for
+-- discovery, and (2) its invite_code is unguessable (48 bits of entropy),
+-- so the only way to ever reach one is already having the link -- the same
+-- trust model as any "anyone with the link" share. The actually sensitive
+-- data -- who's a member, what challenges exist, everyone's progress -- is
+-- separately locked down below to real members only.
+drop policy if exists "communities_select" on public.communities;
+create policy "communities_select" on public.communities
+  for select using (true);
+
+drop policy if exists "communities_insert" on public.communities;
+create policy "communities_insert" on public.communities
+  for insert with check (created_by = auth.uid());
+
+-- ---------- community_members ----------
+create table if not exists public.community_members (
+  community_id uuid not null references public.communities(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  joined_at timestamptz not null default now(),
+  primary key (community_id, user_id)
+);
+
+alter table public.community_members enable row level security;
+
+-- Standard "group membership" RLS pattern: a member can see every
+-- membership row for any community they themselves belong to (so the full
+-- member list renders for them), not just their own row.
+drop policy if exists "community_members_select" on public.community_members;
+create policy "community_members_select" on public.community_members
+  for select using (
+    user_id = auth.uid()
+    or community_id in (select community_id from public.community_members where user_id = auth.uid())
+  );
+
+-- Joining a PUBLIC community directly needs no invite code -- straight
+-- insert. Joining a PRIVATE one is NOT permitted through this policy (no
+-- code check is expressible in a column-only RLS predicate); that path
+-- goes through join_community_by_code() below instead, which runs as
+-- security definer specifically so a private community can be joined
+-- without ever being SELECT-able by non-members first. The creator is
+-- always allowed to add themselves regardless of visibility, so creating a
+-- private community still auto-joins its own creator via a plain insert.
+drop policy if exists "community_members_insert" on public.community_members;
+create policy "community_members_insert" on public.community_members
+  for insert with check (
+    user_id = auth.uid()
+    and exists (
+      select 1 from public.communities c
+      where c.id = community_id and (c.visibility = 'public' or c.created_by = auth.uid())
+    )
+  );
+
+drop policy if exists "community_members_delete" on public.community_members;
+create policy "community_members_delete" on public.community_members
+  for delete using (user_id = auth.uid());
+
+-- ---------- join_community_by_code: the only way to join a PRIVATE
+-- community. security definer bypasses RLS internally so the lookup by
+-- code works even though a non-member can't otherwise SELECT a private
+-- community row at all -- the invite code itself is the credential, same
+-- as the public-metadata tradeoff explained above. ----------
+create or replace function public.join_community_by_code(p_invite_code text)
+returns table (id uuid, name text, visibility text)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_id uuid;
+  v_name text;
+  v_visibility text;
+begin
+  select c.id, c.name, c.visibility into v_id, v_name, v_visibility
+  from public.communities c
+  where c.invite_code = p_invite_code;
+
+  if v_id is null then
+    raise exception 'Invalid invite code';
+  end if;
+
+  insert into public.community_members (community_id, user_id)
+  values (v_id, auth.uid())
+  on conflict (community_id, user_id) do nothing;
+
+  return query select v_id, v_name, v_visibility;
+end;
+$$;
+
+grant execute on function public.join_community_by_code(text) to authenticated;
+
+-- ---------- find_user_by_public_id: resolves the 8-char shareable ID from
+-- the "add a friend" flow to a user, before any friendship exists yet (so
+-- the normal friends-or-community-members profiles policy below doesn't
+-- apply). security definer bypasses RLS, but deliberately returns only
+-- identity fields -- never age/bodyweight -- so looking someone up by ID
+-- confirms who they are without exposing anything more. ----------
+create or replace function public.find_user_by_public_id(p_public_id text)
+returns table (
+  user_id uuid, name text, profile_picture_type text,
+  profile_picture_url text, preset_avatar_id text
+)
+language sql
+security definer
+set search_path = public
+as $$
+  select p.user_id, p.name, p.profile_picture_type, p.profile_picture_url, p.preset_avatar_id
+  from public.profiles p
+  where p.public_id = upper(p_public_id);
+$$;
+
+grant execute on function public.find_user_by_public_id(text) to authenticated;
+
+-- ---------- challenges ----------
+-- lift_label is a denormalized copy of the exercise's display name,
+-- captured once from the CREATOR's own client at creation time. Needed
+-- because `lift` can point at one member's private custom exercise (see
+-- user_custom_exercises) which a different member's client has no way to
+-- resolve to a name -- storing the label once avoids that cross-user
+-- lookup entirely.
+create table if not exists public.challenges (
+  id uuid primary key default gen_random_uuid(),
+  community_id uuid not null references public.communities(id) on delete cascade,
+  created_by uuid not null references auth.users(id) on delete cascade,
+  type text not null check (type in ('gain', 'loss', 'strength')),
+  lift text,
+  lift_label text,
+  target_kg numeric,
+  target_percent numeric,
+  mode text not null check (mode in ('race', 'leaderboard')),
+  start_date date not null,
+  end_date date not null,
+  ended_at timestamptz,
+  winner_id uuid references auth.users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  constraint challenges_dates check (end_date >= start_date)
+);
+
+create index if not exists challenges_community_id_idx on public.challenges (community_id);
+
+alter table public.challenges enable row level security;
+
+drop policy if exists "challenges_select" on public.challenges;
+create policy "challenges_select" on public.challenges
+  for select using (
+    exists (select 1 from public.community_members m where m.community_id = challenges.community_id and m.user_id = auth.uid())
+  );
+
+drop policy if exists "challenges_insert" on public.challenges;
+create policy "challenges_insert" on public.challenges
+  for insert with check (
+    created_by = auth.uid()
+    and exists (select 1 from public.community_members m where m.community_id = challenges.community_id and m.user_id = auth.uid())
+  );
+
+-- Lets any community member write the shared finalize fields
+-- (winner_id/ended_at) the moment their own client notices a Race target
+-- was hit or a Leaderboard window closed -- the same opportunistic
+-- self-heal pattern already used for goal achievements elsewhere in this
+-- app (App.Goals.ensureArchived). The app never exposes a generic
+-- "edit challenge" UI, so in practice only those two fields ever get
+-- written this way.
+drop policy if exists "challenges_update" on public.challenges;
+create policy "challenges_update" on public.challenges
+  for update using (
+    exists (select 1 from public.community_members m where m.community_id = challenges.community_id and m.user_id = auth.uid())
+  ) with check (
+    exists (select 1 from public.community_members m where m.community_id = challenges.community_id and m.user_id = auth.uid())
+  );
+
+-- ---------- challenge_participants ----------
+create table if not exists public.challenge_participants (
+  challenge_id uuid not null references public.challenges(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  status text not null default 'invited' check (status in ('invited', 'accepted', 'declined')),
+  start_value numeric,
+  current_value numeric,
+  updated_at timestamptz,
+  joined_at timestamptz not null default now(),
+  responded_at timestamptz,
+  primary key (challenge_id, user_id)
+);
+
+create index if not exists challenge_participants_challenge_id_idx on public.challenge_participants (challenge_id);
+
+alter table public.challenge_participants enable row level security;
+
+-- Any fellow community member can see everyone's participation/progress in
+-- a shared challenge -- that's the whole point of a leaderboard. Nobody
+-- outside the community sees this table at all. Note this only ever
+-- exposes a single derived current_value number per person, never anyone's
+-- raw entries/bodyweight_log rows (those keep their existing owner-only
+-- RLS completely untouched) -- each participant computes and writes their
+-- own current_value from their own locally-cached history.
+drop policy if exists "challenge_participants_select" on public.challenge_participants;
+create policy "challenge_participants_select" on public.challenge_participants
+  for select using (
+    exists (
+      select 1 from public.challenges c
+      join public.community_members m on m.community_id = c.community_id
+      where c.id = challenge_participants.challenge_id and m.user_id = auth.uid()
+    )
+  );
+
+-- The challenge creator inserts an "invited" row for every other member
+-- (plus their own, pre-accepted) at creation time; a user can also always
+-- insert their own row directly.
+drop policy if exists "challenge_participants_insert" on public.challenge_participants;
+create policy "challenge_participants_insert" on public.challenge_participants
+  for insert with check (
+    user_id = auth.uid()
+    or exists (select 1 from public.challenges c where c.id = challenge_participants.challenge_id and c.created_by = auth.uid())
+  );
+
+-- A participant accepts/declines their own invite and updates their own
+-- progress -- never anyone else's.
+drop policy if exists "challenge_participants_update" on public.challenge_participants;
+create policy "challenge_participants_update" on public.challenge_participants
+  for update using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+-- ---------- profiles: extra read access for friends & community members
+-- ----------
+-- Placed here (rather than up in the profiles section) because it
+-- references friend_requests and community_members, which don't exist
+-- yet at that point in the script. This is a SECOND, additive SELECT
+-- policy alongside profiles_owner's "for all" -- Postgres ORs same-command
+-- policies together, so this only ever widens SELECT (letting you read a
+-- friend's or fellow community member's full profile row -- name, avatar,
+-- age, bodyweight) and never touches INSERT/UPDATE/DELETE, which stay
+-- owner-only via profiles_owner. Covers PENDING friend_requests rows too
+-- (not just accepted ones) -- both sides already identified each other via
+-- a public_id lookup to create the row at all, so the incoming/outgoing
+-- request UI needs to show a name, not a bare user id. Anyone with no
+-- request/friendship/community in common is only ever looked up through
+-- find_user_by_public_id() above, which exposes name/avatar alone, not
+-- age/bodyweight.
+drop policy if exists "profiles_select_connections" on public.profiles;
+create policy "profiles_select_connections" on public.profiles
+  for select using (
+    exists (
+      select 1 from public.friend_requests fr
+      where ((fr.sender_id = auth.uid() and fr.recipient_id = profiles.user_id)
+          or (fr.recipient_id = auth.uid() and fr.sender_id = profiles.user_id))
+    )
+    or exists (
+      select 1 from public.community_members m1
+      join public.community_members m2 on m2.community_id = m1.community_id
+      where m1.user_id = auth.uid() and m2.user_id = profiles.user_id
+    )
+  );
+
 -- ---------- profile-photos storage bucket (uploaded profile pictures) ----------
 -- Private bucket -- there is no public URL for these files. The app always
 -- fetches a short-lived signed URL (App.Storage.getProfilePhotoUrl) to
@@ -273,6 +600,33 @@ drop policy if exists "profile_photos_delete_own" on storage.objects;
 create policy "profile_photos_delete_own" on storage.objects
   for delete using (
     bucket_id = 'profile-photos' and auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+-- Community & Challenges needs friends/community members to be able to
+-- view each other's uploaded profile photos (the profile card and the
+-- challenge leaderboard both show them), which the owner-only select
+-- policy above doesn't allow. Same additive-policy approach as
+-- profiles_select_connections: this ORs in an extra allowed case for
+-- select without touching insert/update/delete, which remain owner-only.
+-- Placed here (not up with the other profile-photos policies) because it
+-- references friend_requests/community_members, created further down.
+drop policy if exists "profile_photos_select_connections" on storage.objects;
+create policy "profile_photos_select_connections" on storage.objects
+  for select using (
+    bucket_id = 'profile-photos'
+    and (
+      exists (
+        select 1 from public.friend_requests fr
+        where fr.status = 'accepted'
+          and ((fr.sender_id = auth.uid() and fr.recipient_id::text = (storage.foldername(name))[1])
+            or (fr.recipient_id = auth.uid() and fr.sender_id::text = (storage.foldername(name))[1]))
+      )
+      or exists (
+        select 1 from public.community_members m1
+        join public.community_members m2 on m2.community_id = m1.community_id
+        where m1.user_id = auth.uid() and m2.user_id::text = (storage.foldername(name))[1]
+      )
+    )
   );
 
 -- ---------- verification ----------

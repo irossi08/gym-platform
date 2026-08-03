@@ -3122,3 +3122,333 @@ body[data-view-style="card"] .ex-picker-option {
   border-color: var(--accent);
   color: var(--text-primary);
 }
+
+/* ---------- Community & Challenges ---------- */
+
+.community-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: var(--density-section-gap);
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.community-banner--ok {
+  border-left-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.community-banner--error {
+  border-left-color: var(--status-critical);
+  color: var(--text-primary);
+}
+
+.community-id-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.community-id-value {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+}
+
+.community-invite-link {
+  font-family: inherit;
+  font-size: 0.8rem;
+  letter-spacing: 0;
+  word-break: break-all;
+  color: var(--text-secondary);
+}
+
+.community-subsection {
+  margin-top: 16px;
+}
+
+.community-subsection-label {
+  margin: 0 0 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.community-people-list,
+.community-member-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.community-person-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.community-person-row:last-child {
+  border-bottom: none;
+}
+
+.community-person-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--surface-2);
+  flex: 0 0 auto;
+}
+
+.community-person-avatar img,
+.community-person-avatar svg,
+.avatar-placeholder {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.avatar-placeholder {
+  background: var(--surface-2);
+}
+
+.community-person-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.community-pending-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.community-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+}
+
+.community-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.community-list-item:last-child {
+  border-bottom: none;
+}
+
+.community-list-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 0;
+  text-decoration: none;
+  color: inherit;
+}
+
+.community-list-name {
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.community-list-visibility {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px 8px;
+  flex: 0 0 auto;
+}
+
+.community-list-visibility--public {
+  color: var(--accent);
+  border-color: rgba(var(--accent-rgb), 0.4);
+}
+
+.community-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.community-action-btn {
+  width: auto;
+  flex: 1 1 auto;
+}
+
+.community-inline-form {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.community-browse {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.community-browse input {
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+
+.community-browse-results .community-list-item {
+  padding: 8px 0;
+}
+
+/* ---------- Challenges ---------- */
+
+.challenge-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.challenge-list-item {
+  border-bottom: 1px solid var(--border);
+}
+
+.challenge-list-item:last-child {
+  border-bottom: none;
+}
+
+.challenge-list-link {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 0;
+  text-decoration: none;
+  color: inherit;
+}
+
+.challenge-list-title {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.challenge-list-meta {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.challenge-type-toggle {
+  flex-wrap: wrap;
+}
+
+.challenge-target-line {
+  margin: 0 0 4px;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  color: var(--text-primary);
+}
+
+.challenge-leaderboard {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.challenge-leaderboard-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.challenge-leaderboard-row:last-child {
+  border-bottom: none;
+}
+
+.challenge-leaderboard-row--me {
+  background: rgba(var(--accent-rgb), 0.06);
+  border-radius: 8px;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.challenge-rank {
+  flex: 0 0 22px;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.challenge-leaderboard-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--surface-2);
+  flex: 0 0 auto;
+}
+
+.challenge-leaderboard-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.challenge-leaderboard-name {
+  margin: 0 0 4px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.challenge-progress-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface-2);
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.challenge-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.challenge-leaderboard-value {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}

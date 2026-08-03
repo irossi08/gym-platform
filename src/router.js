@@ -1,7 +1,7 @@
 window.App = window.App || {};
 
 App.Router = (function () {
-  const PROTECTED = ['home', 'one-rep-max', 'history', 'split-builder', 'achievements', 'settings', 'profile-setup'];
+  const PROTECTED = ['home', 'one-rep-max', 'history', 'split-builder', 'achievements', 'settings', 'profile-setup', 'community'];
   let navEl, rootEl;
   let lastUser = null, lastRoute = null;
 
@@ -15,6 +15,11 @@ App.Router = (function () {
 
   function handleRouteChange() {
     const route = parseRoute();
+    // Community/challenge pages are nested ("community/<id>",
+    // "community/<id>/challenge/<id>", "community/join/<code>") -- every
+    // protection/redirect check below only needs the base segment, so this
+    // is the one place that splits it out.
+    const routeBase = route.split('/')[0];
     const user = App.Auth.getCurrentUser();
 
     // The whole app is built on CSS custom properties, so a logged-in
@@ -24,7 +29,7 @@ App.Router = (function () {
     // else.
     App.Theme.applyTheme(user ? App.Storage.getTheme(user.id) : App.Theme.DEFAULTS);
 
-    if (PROTECTED.indexOf(route) !== -1 && !user) {
+    if (PROTECTED.indexOf(routeBase) !== -1 && !user) {
       navigate('login');
       return;
     }
@@ -93,6 +98,17 @@ App.Router = (function () {
       App.Pages.Achievements.render(rootEl, { user: user });
     } else if (route === 'settings') {
       App.Pages.Settings.render(rootEl, { user: user });
+    } else if (routeBase === 'community') {
+      const segments = route.split('/');
+      if (segments[1] === 'join' && segments[2]) {
+        App.Pages.Community.render(rootEl, { user: user, joinCode: segments[2] });
+      } else if (segments[1] && segments[2] === 'challenge' && segments[3]) {
+        App.Pages.ChallengeDetail.render(rootEl, { user: user, communityId: segments[1], challengeId: segments[3] });
+      } else if (segments[1]) {
+        App.Pages.CommunityDetail.render(rootEl, { user: user, communityId: segments[1] });
+      } else {
+        App.Pages.Community.render(rootEl, { user: user });
+      }
     } else {
       App.Pages.Landing.render(rootEl, {});
     }

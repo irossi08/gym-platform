@@ -460,6 +460,7 @@ App.Storage = (function () {
           timePerSession: profileRow.time_per_session, experienceLevel: profileRow.experience_level,
           name: profileRow.name, profilePictureType: profileRow.profile_picture_type,
           profilePictureUrl: profileRow.profile_picture_url, presetAvatarId: profileRow.preset_avatar_id,
+          publicId: profileRow.public_id,
         } : null,
 
         split: (splitRow && Array.isArray(splitRow.days)) ? { days: splitRow.days } : null,

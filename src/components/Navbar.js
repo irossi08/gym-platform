@@ -16,9 +16,13 @@ App.Components.Navbar = (function () {
   let outsideClickWired = false;
 
   function link(href, label, route, activeRoute, extraClass) {
-    const active = route === activeRoute ? ' navbar-link--active' : '';
+    // Community has nested sub-routes ("community/<id>", ".../challenge/<id>")
+    // -- comparing base segments keeps the Community link highlighted
+    // anywhere under it, not just on the bare hub page.
+    const isActive = route === (activeRoute || '').split('/')[0];
+    const active = isActive ? ' navbar-link--active' : '';
     return '<a href="' + href + '" class="navbar-link' + active + (extraClass ? ' ' + extraClass : '') + '"' +
-      (route === activeRoute ? ' aria-current="page"' : '') + '>' + label + '</a>';
+      (isActive ? ' aria-current="page"' : '') + '>' + label + '</a>';
   }
 
   function closeMenu() {
@@ -53,6 +57,7 @@ App.Components.Navbar = (function () {
         link('#/one-rep-max', '1 Rep Max', 'one-rep-max', activeRoute) +
         link('#/history', 'History', 'history', activeRoute) +
         link('#/split-builder', 'Build My Split', 'split-builder', activeRoute) +
+        link('#/community', 'Community', 'community', activeRoute) +
         (hasAchievements ? link('#/achievements', 'Achievements', 'achievements', activeRoute) : '');
 
       const menuHtml =

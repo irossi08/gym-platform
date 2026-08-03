@@ -57,6 +57,13 @@ App.Components.QuickLinks = (function () {
         '<line x1="8" y1="21" x2="16" y2="21" stroke="currentColor" stroke-width="2" stroke-linecap="round" />' +
       '</svg>',
     gear: gearIcon(),
+    people:
+      '<svg viewBox="0 0 24 24" class="page-quick-link-icon" aria-hidden="true">' +
+        '<circle cx="9" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="2" />' +
+        '<path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />' +
+        '<circle cx="17" cy="8.5" r="2.4" fill="none" stroke="currentColor" stroke-width="2" />' +
+        '<path d="M15.5 14.3c2.6.4 4.5 2.6 4.5 5.7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />' +
+      '</svg>',
   };
 
   const PAGES = [
@@ -64,6 +71,7 @@ App.Components.QuickLinks = (function () {
     { route: 'one-rep-max', href: '#/one-rep-max', label: '1 Rep Max', icon: 'dumbbell' },
     { route: 'history', href: '#/history', label: 'History', icon: 'clock' },
     { route: 'split-builder', href: '#/split-builder', label: 'Build My Split', icon: 'calendar' },
+    { route: 'community', href: '#/community', label: 'Community', icon: 'people' },
     { route: 'achievements', href: '#/achievements', label: 'Achievements', icon: 'trophy' },
     { route: 'settings', href: '#/settings', label: 'Settings', icon: 'gear' },
   ];
@@ -72,9 +80,13 @@ App.Components.QuickLinks = (function () {
     // Same unlock condition as the hamburger menu's Achievements link --
     // hidden entirely until there's something to show there.
     const hasAchievements = App.Storage.getAchievements(user.id).length > 0;
+    // Community has nested sub-pages ("community/<id>", ".../challenge/<id>")
+    // -- comparing base segments hides this icon on all of them, not just
+    // the bare hub page, same as every other page hides its own icon.
+    const currentBase = (currentRoute || '').split('/')[0];
 
     const links = PAGES.filter(function (p) {
-      if (p.route === currentRoute) return false;
+      if (p.route === currentBase) return false;
       if (p.route === 'achievements' && !hasAchievements) return false;
       return true;
     });
