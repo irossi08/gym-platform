@@ -83,7 +83,9 @@ App.Router = (function () {
     // TourOverlay itself drives navigation onward from here, so this is
     // the only spot that needs to kick it off.
     if (route === 'home' && user && !App.Storage.getTourSeen(user.id) && !App.Components.TourOverlay.isActive()) {
-      App.Components.TourOverlay.start(user);
+      App.Components.TourOverlay.start(user, App.TourSteps, {
+        onFinish: function (u) { App.Storage.setTourSeen(u.id); },
+      });
     }
   }
 

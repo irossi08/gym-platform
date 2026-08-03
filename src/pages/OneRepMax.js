@@ -132,7 +132,7 @@ App.Pages.OneRepMax = (function () {
       App.Storage.addBodyweightEntry(user.id, { date: entry.date, weight: data.bodyweight, unit: data.unit });
 
       const achievedGoal = App.Goals.checkAchievement(user.id);
-      if (achievedGoal) App.Components.GoalCelebration.celebrate(achievedGoal);
+      if (achievedGoal) App.Components.GoalCelebration.celebrate(achievedGoal, user);
 
       state.formDefaults = { lift: data.lift, unit: data.unit, sex: data.sex, bodyweight: data.bodyweight };
       saveSettings();

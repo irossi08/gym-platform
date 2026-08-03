@@ -37,6 +37,7 @@ App.Storage = (function () {
       goal: null,
       achievements: [],
       tourSeen: false,
+      achievementTourSeen: false,
       theme: {},
       addedExercises: [],
       customExercises: [],
@@ -291,6 +292,20 @@ App.Storage = (function () {
     }, { onConflict: 'user_id' }).then(logIfError('setTourSeen'));
   }
 
+  // Separate flag for the short first-achievement mini-tour -- tracked
+  // independently so it never interferes with the main tour's flag above.
+  function getAchievementTourSeen(userId) {
+    return cacheFor(userId).achievementTourSeen;
+  }
+
+  function setAchievementTourSeen(userId) {
+    cacheFor(userId).achievementTourSeen = true;
+    db.from('settings').upsert({
+      user_id: userId,
+      achievement_tour_seen: true,
+    }, { onConflict: 'user_id' }).then(logIfError('setAchievementTourSeen'));
+  }
+
   // ---------- theme (Settings page appearance) ----------
 
   function getTheme(userId) {
@@ -428,6 +443,7 @@ App.Storage = (function () {
         }),
 
         tourSeen: !!(settingsRow && settingsRow.tour_seen),
+        achievementTourSeen: !!(settingsRow && settingsRow.achievement_tour_seen),
 
         theme: themeRow ? compact({
           bg: themeRow.bg, surface: themeRow.surface, accent: themeRow.accent, text: themeRow.text_color,
@@ -458,6 +474,7 @@ App.Storage = (function () {
     getGoal, saveGoal, clearGoal,
     getAchievements, saveAchievements, addAchievement,
     getTourSeen, setTourSeen,
+    getAchievementTourSeen, setAchievementTourSeen,
     getTheme, saveTheme,
     getUserAddedExercises, addUserAddedExercise,
     getCustomExercises, addCustomExercise,

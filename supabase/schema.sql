@@ -58,13 +58,18 @@ create policy "entries_owner" on public.entries
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create index if not exists entries_user_id_idx on public.entries (user_id);
 
--- ---------- settings (display unit + last-used form defaults + tour flag) ----------
+-- ---------- settings (display unit + last-used form defaults + tour flags) ----------
 create table if not exists public.settings (
   user_id uuid primary key references auth.users(id) on delete cascade,
   display_unit text,
   form_defaults jsonb,
-  tour_seen boolean not null default false
+  tour_seen boolean not null default false,
+  achievement_tour_seen boolean not null default false
 );
+
+-- ADD COLUMN IF NOT EXISTS so this is safe to re-run against a settings
+-- table that already existed before the achievement mini-tour did.
+alter table public.settings add column if not exists achievement_tour_seen boolean not null default false;
 
 alter table public.settings enable row level security;
 drop policy if exists "settings_owner" on public.settings;

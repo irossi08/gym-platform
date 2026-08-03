@@ -2,24 +2,31 @@ window.App = window.App || {};
 App.Components = App.Components || {};
 
 /**
- * Onboarding tour engine, driven entirely by the App.TourSteps config --
- * this file has no per-page knowledge, it just knows how to navigate to a
- * step's route, find its target element, spotlight it, and show the
- * robot's message. Appended to document.body (like StreakModal/
- * GoalCelebration) so it survives the page-navigation it itself triggers,
- * since router.js wipes and rebuilds #app-root on every route change.
+ * Reusable onboarding-tour engine, driven entirely by whatever step array
+ * it's given -- this file has no per-page knowledge and no fixed idea of
+ * "the" tour, it just knows how to navigate to a step's route, find its
+ * target element, spotlight it, and show the robot's message. That's what
+ * lets it back BOTH the main app tour (App.TourSteps) and the separate,
+ * shorter first-achievement tour (App.AchievementTourSteps) -- each call
+ * to start() supplies its own steps and its own "mark as seen" callback,
+ * so the two tours never share state or interfere with each other.
+ *
+ * Appended to document.body (like StreakModal/GoalCelebration) so it
+ * survives the page-navigation it itself triggers, since router.js wipes
+ * and rebuilds #app-root on every route change.
  *
  * A step whose target selector never appears (e.g. Split Builder's day-card
- * step for a brand-new account with no split yet) is skipped automatically
- * rather than faking data to force it to show -- see tourSteps.js.
+ * step for a brand-new account with no split yet, or the Achievements step
+ * for an account that hasn't unlocked it) is skipped automatically rather
+ * than faking data to force it to show -- see tourSteps.js.
  */
 App.Components.TourOverlay = (function () {
-  let state = null; // { user, index }
+  let state = null; // { user, index, steps, onFinish }
   let els = null; // { backdrop, spotlight, tooltip }
   let repositionHandler = null;
 
   function currentTarget() {
-    const step = App.TourSteps[state.index];
+    const step = state.steps[state.index];
     return step && step.target ? document.querySelector(step.target) : null;
   }
 
@@ -111,10 +118,14 @@ App.Components.TourOverlay = (function () {
   }
 
   function showStep() {
-    const step = App.TourSteps[state.index];
-    const isLast = state.index === App.TourSteps.length - 1;
+    const step = state.steps[state.index];
+    const isLast = state.index === state.steps.length - 1;
+    // A step's message can be a plain string or a function of the current
+    // user (e.g. the main tour's closing step only mentions Achievements
+    // if it wasn't already shown earlier in the same run).
+    const message = typeof step.message === 'function' ? step.message(state.user) : step.message;
 
-    els.tooltip.querySelector('.tour-message').textContent = step.message;
+    els.tooltip.querySelector('.tour-message').textContent = message;
     els.tooltip.querySelector('.tour-next-btn').textContent = isLast ? 'Got it!' : 'Next';
 
     const target = currentTarget();
@@ -161,15 +172,16 @@ App.Components.TourOverlay = (function () {
   }
 
   function goToStep(index) {
-    if (index >= App.TourSteps.length) { finish(); return; }
+    if (index >= state.steps.length) { finish(); return; }
     state.index = index;
-    const step = App.TourSteps[index];
+    const step = state.steps[index];
     const needsNav = !!step.route && step.route !== App.Router.getRoute();
 
     function handleTarget(el) {
       if (step.target && !el) {
-        // Genuinely not on the page (e.g. no split built yet) -- skip
-        // straight past it instead of spotlighting nothing.
+        // Genuinely not on the page (e.g. no split built yet, or
+        // Achievements never unlocked) -- skip straight past it instead of
+        // spotlighting nothing.
         goToStep(index + 1);
         return;
       }
@@ -186,18 +198,25 @@ App.Components.TourOverlay = (function () {
 
   function finish() {
     if (!state) return;
-    App.Storage.setTourSeen(state.user.id);
+    const user = state.user;
+    const onFinish = state.onFinish;
     teardownDom();
     state = null;
+    if (onFinish) onFinish(user);
   }
 
   function isActive() {
     return !!state;
   }
 
-  function start(user) {
-    if (state) return;
-    state = { user: user, index: 0 };
+  // `steps` is the array of {route, target, message} to run. `opts.onFinish`
+  // fires once, on completion OR skip, with the user -- callers use it to
+  // persist their own "seen" flag (main tour vs achievement tour each set a
+  // different one, which is exactly why this isn't done here directly).
+  function start(user, steps, opts) {
+    if (state || !steps || !steps.length) return;
+    opts = opts || {};
+    state = { user: user, index: 0, steps: steps, onFinish: opts.onFinish || null };
     buildDom();
     repositionHandler = reposition;
     window.addEventListener('resize', repositionHandler);

@@ -47,11 +47,11 @@ App.Pages.Settings = (function () {
             '<div class="page-title-row"><h1 class="page-title">Settings</h1><div id="settings-streak-badge"></div></div>' +
           '</div>' +
           '<div id="settings-quick-links"></div>' +
-          '<div class="card">' +
+          '<div class="card" id="settings-colors-card">' +
             '<h2 class="section-title">Colors</h2>' +
             COLOR_FIELDS.map(function (f) { return colorFieldHtml(f, theme[f.key]); }).join('') +
           '</div>' +
-          '<div class="card">' +
+          '<div class="card" id="settings-layout-card">' +
             '<h2 class="section-title">Layout</h2>' +
             '<div class="settings-layout-field">' +
               '<p class="settings-layout-label">Spacing</p>' +

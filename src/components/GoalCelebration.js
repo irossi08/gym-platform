@@ -9,6 +9,14 @@ App.Components = App.Components || {};
  * triggered it -- same pattern as StreakModal. The applause is synthesized
  * with Web Audio (filtered noise bursts) rather than an audio file, since
  * this app ships with no bundled assets.
+ *
+ * Also owns kicking off the separate, short achievement mini-tour: the
+ * moment this celebration is dismissed (button, outside click, or the
+ * auto-timeout -- whichever happens first), if this was the user's very
+ * first achievement ever and they haven't seen that mini-tour yet, it
+ * starts automatically. Centralized here (rather than at each of the 3
+ * call sites that trigger a celebration) so the eligibility check only
+ * lives in one place.
  */
 App.Components.GoalCelebration = (function () {
   // First entry is the live accent (a CSS custom property token works fine
@@ -86,7 +94,7 @@ App.Components.GoalCelebration = (function () {
     setTimeout(function () { overlay.remove(); }, 4500);
   }
 
-  function celebrate(goal) {
+  function celebrate(goal, user) {
     spawnConfetti();
     playApplause();
 
@@ -99,7 +107,20 @@ App.Components.GoalCelebration = (function () {
       '</div>';
     document.body.appendChild(banner);
 
-    function dismiss() { banner.remove(); }
+    function dismiss() {
+      banner.remove();
+      if (!user) return;
+      // "First achievement ever" is exactly the moment the archive holds
+      // one record -- the one just added by whichever checkAchievement
+      // call led to this celebration. Guarded by its own flag too, in case
+      // this ever runs more than once for that same first achievement.
+      const isFirstAchievementEver = App.Storage.getAchievements(user.id).length === 1;
+      if (isFirstAchievementEver && !App.Storage.getAchievementTourSeen(user.id) && !App.Components.TourOverlay.isActive()) {
+        App.Components.TourOverlay.start(user, App.AchievementTourSteps, {
+          onFinish: function (u) { App.Storage.setAchievementTourSeen(u.id); },
+        });
+      }
+    }
     banner.querySelector('.goal-celebration-dismiss').addEventListener('click', dismiss);
     banner.addEventListener('click', function (e) { if (e.target === banner) dismiss(); });
     setTimeout(dismiss, 6000);

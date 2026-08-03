@@ -67,7 +67,7 @@ App.Pages.Home = (function () {
       }
       App.Storage.addBodyweightEntry(user.id, { date: new Date().toISOString(), weight: weight, unit: unit });
       const achievedGoal = App.Goals.checkAchievement(user.id);
-      if (achievedGoal) App.Components.GoalCelebration.celebrate(achievedGoal);
+      if (achievedGoal) App.Components.GoalCelebration.celebrate(achievedGoal, user);
       saveBtn.disabled = true;
       saveBtn.textContent = '✓ Logged';
       setTimeout(function () { onLogged(); }, 600);

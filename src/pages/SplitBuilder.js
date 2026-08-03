@@ -176,7 +176,7 @@ App.Pages.SplitBuilder = (function () {
       App.Storage.saveProfile(user.id, newProfile);
       App.Storage.addBodyweightEntry(user.id, { date: new Date().toISOString(), weight: bodyweight, unit: bodyweightUnit });
       const achievedGoal = App.Goals.checkAchievement(user.id);
-      if (achievedGoal) App.Components.GoalCelebration.celebrate(achievedGoal);
+      if (achievedGoal) App.Components.GoalCelebration.celebrate(achievedGoal, user);
       const split = App.SplitBuilder.buildSplit(newProfile);
       App.Storage.saveSplit(user.id, split);
       renderResults(container, user, newProfile, split);
