@@ -121,21 +121,105 @@ App.Communities = (function () {
     });
   }
 
-  // Adds a friend directly, no separate accept step -- unlike friend
-  // requests and challenge invites. Only the community's creator can do
-  // this (community_members_insert in schema.sql also requires the target
-  // to actually be a friend), so this is a real "owner adds someone they
-  // trust" action, not an open invite mechanism.
-  function inviteFriendToCommunity(communityId, friendUserId) {
-    return db.from('community_members').insert({ community_id: communityId, user_id: friendUserId }).then(function (res) {
-      if (res.error && res.error.code !== '23505') return { ok: false, error: res.error.message };
+  // Sends an invite requiring acceptance -- same philosophy as friend
+  // requests and challenge invites, NOT a direct add. Only the community's
+  // creator can send one, and only to an actual friend (both enforced by
+  // community_invites_insert in schema.sql).
+  function inviteFriendToCommunity(communityId, friendUserId, inviterUserId) {
+    return db.from('community_invites').insert({
+      community_id: communityId, invited_by: inviterUserId, invited_user_id: friendUserId,
+    }).then(function (res) {
+      // Postgres unique_violation -- already invited (and still pending).
+      if (res.error) return { ok: false, error: res.error.code === '23505' ? 'Already invited.' : res.error.message };
       return { ok: true };
     });
+  }
+
+  function communityInviteRowToObj(row) {
+    return {
+      id: row.id, communityId: row.community_id, invitedBy: row.invited_by,
+      communityName: row.communities ? row.communities.name : 'Unknown community',
+      createdAt: row.created_at,
+    };
+  }
+
+  // Pending invites addressed to userId, with the inviter's name/avatar
+  // and the community's name attached for display.
+  function getMyPendingInvites(userId) {
+    return db.from('community_invites')
+      .select('*, communities(name)')
+      .eq('invited_user_id', userId)
+      .eq('status', 'pending')
+      .then(function (res) {
+        if (res.error) {
+          console.error('[Communities] getMyPendingInvites failed:', res.error);
+          return [];
+        }
+        const rows = (res.data || []).map(communityInviteRowToObj);
+        return App.Social.profilesForUserIds(rows.map(function (r) { return r.invitedBy; })).then(function (profileMap) {
+          rows.forEach(function (r) { r.inviterProfile = profileMap[r.invitedBy] || null; });
+          return rows;
+        });
+      });
+  }
+
+  // Atomic accept-and-join -- see accept_community_invite() in schema.sql.
+  function acceptCommunityInvite(inviteId) {
+    return db.rpc('accept_community_invite', { p_invite_id: inviteId }).then(function (res) {
+      return { ok: !res.error, error: res.error && res.error.message };
+    });
+  }
+
+  function declineCommunityInvite(inviteId) {
+    return db.from('community_invites').delete().eq('id', inviteId)
+      .then(function (res) { return { ok: !res.error, error: res.error && res.error.message }; });
+  }
+
+  // Catch-up/notified tracking, same pattern as the friend_requests
+  // equivalents in App.Social -- see FriendRequestToast. Returns RAW rows
+  // (not communityInviteRowToObj) deliberately, same shape as a Realtime
+  // INSERT payload (which has no communities(name) embed -- that's a
+  // PostgREST-only feature) -- FriendRequestToast handles both sources
+  // through one code path this way.
+  function getUnnotifiedInvites(userId) {
+    return db.from('community_invites')
+      .select('*, communities(name)')
+      .eq('invited_user_id', userId)
+      .eq('status', 'pending')
+      .eq('notified', false)
+      .then(function (res) {
+        if (res.error) {
+          console.error('[Communities] getUnnotifiedInvites failed:', res.error);
+          return [];
+        }
+        return res.data || [];
+      });
+  }
+
+  function markInvitesNotified(inviteIds) {
+    if (!inviteIds || inviteIds.length === 0) return Promise.resolve();
+    return db.from('community_invites').update({ notified: true }).in('id', inviteIds)
+      .then(function (res) { if (res.error) console.error('[Communities] markInvitesNotified failed:', res.error); });
+  }
+
+  // Live: fires onInsert(row) the instant a new community_invites row
+  // targeting userId is inserted -- requires community_invites to be part
+  // of the supabase_realtime publication (see schema.sql).
+  function subscribeToCommunityInvites(userId, onInsert) {
+    const channel = db
+      .channel('community-invites-' + userId)
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'community_invites', filter: 'invited_user_id=eq.' + userId,
+      }, function (payload) { onInsert(payload.new); })
+      .subscribe();
+    return function unsubscribe() { db.removeChannel(channel); };
   }
 
   return {
     inviteLink, createCommunity, getCommunity, getMyCommunities,
     browsePublicCommunities, joinPublicCommunity, joinByCode, leaveCommunity, getMembers,
     getMyCreatedCommunities, inviteFriendToCommunity,
+    getMyPendingInvites, acceptCommunityInvite, declineCommunityInvite,
+    getUnnotifiedInvites, markInvitesNotified, subscribeToCommunityInvites,
   };
 })();

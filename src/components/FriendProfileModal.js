@@ -115,9 +115,9 @@ App.Components.FriendProfileModal = (function () {
       btn.addEventListener('click', function () {
         btn.disabled = true;
         const statusEl = modalEl.querySelector('.friend-profile-invite-status');
-        App.Communities.inviteFriendToCommunity(btn.dataset.communityId, friendUserId).then(function (res) {
+        App.Communities.inviteFriendToCommunity(btn.dataset.communityId, friendUserId, viewerUser.id).then(function (res) {
           statusEl.textContent = res.ok
-            ? (data.profile.name || 'They') + ' has been added to that community.'
+            ? 'Invite sent to ' + (data.profile.name || 'them') + '.'
             : (res.error || 'Could not send the invite.');
           if (!res.ok) btn.disabled = false;
         });

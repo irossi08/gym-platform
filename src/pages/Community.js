@@ -33,8 +33,11 @@ App.Pages.Community = (function () {
       return Promise.all([
         App.Social.getFriendData(user.id),
         App.Communities.getMyCommunities(user.id),
+        App.Communities.getMyPendingInvites(user.id),
       ]).then(function (results) {
-        renderPage(container, user, { friendData: results[0], communities: results[1], joinResult: joinResult });
+        renderPage(container, user, {
+          friendData: results[0], communities: results[1], invites: results[2], joinResult: joinResult,
+        });
       });
     });
   }
@@ -99,6 +102,24 @@ App.Pages.Community = (function () {
         '</ul>'
       : '<p class="empty-hint">No friends yet — add one using their ID above.</p>';
 
+    const invitesHtml = state.invites.length
+      ? '<div class="community-subsection">' +
+          '<p class="community-subsection-label">Community invites</p>' +
+          '<ul class="community-people-list">' +
+            state.invites.map(function (inv) {
+              return (
+                '<li class="community-person-row" data-invite-id="' + inv.id + '">' +
+                  '<div class="community-person-avatar"></div>' +
+                  '<span class="community-person-name">' + nameOrFallback(inv.inviterProfile) + ' invited you to <strong>' + escapeHtml(inv.communityName) + '</strong></span>' +
+                  '<button type="button" class="btn-accent-sm community-invite-accept-btn" data-invite-id="' + inv.id + '">Accept</button>' +
+                  '<button type="button" class="btn-ghost-sm community-invite-decline-btn" data-invite-id="' + inv.id + '">Decline</button>' +
+                '</li>'
+              );
+            }).join('') +
+          '</ul>' +
+        '</div>'
+      : '';
+
     const myCommunitiesHtml = state.communities.length
       ? '<ul class="community-list">' +
           state.communities.map(function (c) {
@@ -162,6 +183,7 @@ App.Pages.Community = (function () {
         '</div>' +
         '<div class="card">' +
           '<h2 class="section-title">My Communities</h2>' +
+          invitesHtml +
           myCommunitiesHtml +
           '<div class="community-actions-row">' +
             '<button type="button" class="btn-primary community-action-btn" id="community-create-btn">Create a community</button>' +
@@ -179,10 +201,15 @@ App.Pages.Community = (function () {
     // (names, buttons) is already painted.
     const all = fd.friends.concat(fd.incoming, fd.outgoing);
     App.Components.Avatar.renderList(
-      Array.prototype.map.call(container.querySelectorAll('.community-person-row'), function (row) {
+      Array.prototype.map.call(container.querySelectorAll('.community-person-row[data-request-id]'), function (row) {
         const entry = all.find(function (r) { return String(r.requestId) === row.dataset.requestId; });
         return { container: row.querySelector('.community-person-avatar'), profile: entry && entry.profile };
-      })
+      }).concat(
+        Array.prototype.map.call(container.querySelectorAll('.community-person-row[data-invite-id]'), function (row) {
+          const inv = state.invites.find(function (i) { return String(i.id) === row.dataset.inviteId; });
+          return { container: row.querySelector('.community-person-avatar'), profile: inv && inv.inviterProfile };
+        })
+      )
     );
 
     App.Components.QuickLinks.render(container.querySelector('#community-quick-links'), user, 'community');
@@ -190,6 +217,7 @@ App.Pages.Community = (function () {
     wireAddFriend(container, user);
     wireRequestButtons(container, user);
     wireCommunityActions(container, user);
+    wireCommunityInvites(container, user);
 
     container.querySelectorAll('.community-person-row--clickable').forEach(function (row) {
       row.addEventListener('click', function () {
@@ -274,6 +302,21 @@ App.Pages.Community = (function () {
     container.querySelectorAll('.community-decline-btn').forEach(function (btn) {
       btn.addEventListener('click', function () {
         App.Social.respondToFriendRequest(btn.dataset.requestId, false).then(function () { render(container, { user: user }); });
+      });
+    });
+  }
+
+  function wireCommunityInvites(container, user) {
+    container.querySelectorAll('.community-invite-accept-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        btn.disabled = true;
+        App.Communities.acceptCommunityInvite(btn.dataset.inviteId).then(function () { render(container, { user: user }); });
+      });
+    });
+    container.querySelectorAll('.community-invite-decline-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        btn.disabled = true;
+        App.Communities.declineCommunityInvite(btn.dataset.inviteId).then(function () { render(container, { user: user }); });
       });
     });
   }

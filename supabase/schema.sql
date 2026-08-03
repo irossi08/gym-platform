@@ -464,33 +464,115 @@ create policy "community_members_select" on public.community_members
 -- always allowed to add themselves regardless of visibility, so creating a
 -- private community still auto-joins its own creator via a plain insert.
 --
--- Second clause: lets a community's CREATOR add one of their own friends
--- directly (App.Communities.inviteFriendToCommunity) -- this is the
--- "invite a friend to a community you created" feature, deliberately a
--- direct add rather than a separate pending-invite flow (unlike friend
--- requests and challenge invites, both of which do require the other side
--- to accept). Scoped to communities you created (not just any you belong
--- to) and to actual friends (are_friends), so this can't be used to add
--- an arbitrary stranger to someone else's community.
+-- "Invite a friend to a community you created" (App.Communities.
+-- inviteFriendToCommunity) does NOT insert here directly -- it goes
+-- through community_invites below instead, requiring the friend to
+-- accept. accept_community_invite() is security definer, so it performs
+-- that eventual membership insert bypassing RLS entirely; this policy
+-- deliberately does NOT grant the invited user (or the creator on their
+-- behalf) any direct insert path, so the only way into a community you
+-- didn't create/self-join-as-public is accepting an invite or a code.
 drop policy if exists "community_members_insert" on public.community_members;
 create policy "community_members_insert" on public.community_members
   for insert with check (
-    (
-      user_id = auth.uid()
-      and exists (
-        select 1 from public.communities c
-        where c.id = community_id and (c.visibility = 'public' or c.created_by = auth.uid())
-      )
-    )
-    or (
-      exists (select 1 from public.communities c where c.id = community_id and c.created_by = auth.uid())
-      and public.are_friends(auth.uid(), user_id)
+    user_id = auth.uid()
+    and exists (
+      select 1 from public.communities c
+      where c.id = community_id and (c.visibility = 'public' or c.created_by = auth.uid())
     )
   );
 
 drop policy if exists "community_members_delete" on public.community_members;
 create policy "community_members_delete" on public.community_members
   for delete using (user_id = auth.uid());
+
+-- ---------- community_invites (invite a friend to a community you
+-- created -- requires their acceptance, same philosophy as
+-- friend_requests: no separate "declined" status, declining/cancelling is
+-- just a delete) ----------
+create table if not exists public.community_invites (
+  id uuid primary key default gen_random_uuid(),
+  community_id uuid not null references public.communities(id) on delete cascade,
+  invited_by uuid not null references auth.users(id) on delete cascade,
+  invited_user_id uuid not null references auth.users(id) on delete cascade,
+  status text not null default 'pending' check (status in ('pending', 'accepted')),
+  created_at timestamptz not null default now(),
+  responded_at timestamptz,
+  notified boolean not null default false,
+  unique (community_id, invited_user_id)
+);
+
+create index if not exists community_invites_invited_user_idx on public.community_invites (invited_user_id);
+
+alter table public.community_invites enable row level security;
+
+drop policy if exists "community_invites_select" on public.community_invites;
+create policy "community_invites_select" on public.community_invites
+  for select using (auth.uid() = invited_by or auth.uid() = invited_user_id);
+
+-- Only a community's creator can send one, and only to an actual friend --
+-- mirrors the guard that used to live on community_members_insert before
+-- this became a proper request/accept flow.
+drop policy if exists "community_invites_insert" on public.community_invites;
+create policy "community_invites_insert" on public.community_invites
+  for insert with check (
+    invited_by = auth.uid()
+    and exists (select 1 from public.communities c where c.id = community_id and c.created_by = auth.uid())
+    and public.are_friends(auth.uid(), invited_user_id)
+  );
+
+-- Only the invited user can accept (there's no "decline" update -- that's
+-- a delete, see below), same pattern as friend_requests_update.
+drop policy if exists "community_invites_update" on public.community_invites;
+create policy "community_invites_update" on public.community_invites
+  for update using (auth.uid() = invited_user_id) with check (auth.uid() = invited_user_id);
+
+-- The invited user can decline (delete their own pending invite), or the
+-- original inviter can cancel one they sent.
+drop policy if exists "community_invites_delete" on public.community_invites;
+create policy "community_invites_delete" on public.community_invites
+  for delete using (auth.uid() = invited_by or auth.uid() = invited_user_id);
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'community_invites'
+  ) then
+    alter publication supabase_realtime add table public.community_invites;
+  end if;
+end $$;
+
+-- Accepting an invite has to do two things atomically: mark the invite
+-- accepted, and actually add the membership row -- community_members_insert
+-- deliberately grants no direct path for this (see above), so this
+-- security-definer function does both, bypassing RLS internally, after
+-- verifying the caller IS the invited user and the invite is still pending.
+create or replace function public.accept_community_invite(p_invite_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_community_id uuid;
+begin
+  update public.community_invites
+  set status = 'accepted', responded_at = now()
+  where id = p_invite_id and invited_user_id = auth.uid() and status = 'pending'
+  returning community_id into v_community_id;
+
+  if v_community_id is null then
+    raise exception 'Invite not found or already handled';
+  end if;
+
+  insert into public.community_members (community_id, user_id)
+  values (v_community_id, auth.uid())
+  on conflict (community_id, user_id) do nothing;
+end;
+$$;
+
+grant execute on function public.accept_community_invite(uuid) to authenticated;
 
 -- ---------- join_community_by_code: the only way to join a PRIVATE
 -- community. security definer bypasses RLS internally so the lookup by
