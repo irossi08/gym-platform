@@ -8,9 +8,15 @@
   --text-muted: #666666;
   --border: rgba(255, 255, 255, 0.09);
 
-  --accent: #39ff14;
-  --accent-ink: #0a0a0a;
-  --accent-glow: rgba(57, 255, 20, 0.35);
+  /* Baseline accent is pink/magenta -- --accent-rgb is the plain "r, g, b"
+     triplet (no rgba() wrapper) so any rule needing a non-default alpha can
+     do rgba(var(--accent-rgb), X) and still react correctly when the
+     accent changes (Settings, or this default), instead of hardcoding a
+     color that only ever matched the old green. */
+  --accent: #ff2ea6;
+  --accent-rgb: 255, 46, 166;
+  --accent-ink: #ffffff;
+  --accent-glow: rgba(var(--accent-rgb), 0.35);
 
   --status-critical: #ff4d4d;
   --status-warning: #ffb020;
@@ -97,7 +103,7 @@ a:focus-visible {
 }
 
 .card:hover {
-  border-color: rgba(57, 255, 20, 0.4);
+  border-color: rgba(var(--accent-rgb), 0.4);
   border-left-color: var(--accent);
 }
 
@@ -274,12 +280,12 @@ a:focus-visible {
 }
 
 .navbar-menu .navbar-link:hover {
-  background: rgba(57, 255, 20, 0.08);
+  background: rgba(var(--accent-rgb), 0.08);
 }
 
 .navbar-menu .navbar-link--active {
   color: var(--accent);
-  background: rgba(57, 255, 20, 0.12);
+  background: rgba(var(--accent-rgb), 0.12);
 }
 
 .navbar-menu .navbar-link--active::after {
@@ -619,7 +625,7 @@ a:focus-visible {
   border-color: var(--accent);
   outline: 2px solid var(--accent);
   outline-offset: 1px;
-  box-shadow: 0 0 0 4px rgba(57, 255, 20, 0.12);
+  box-shadow: 0 0 0 4px rgba(var(--accent-rgb), 0.12);
 }
 
 /* ---------- Exercise picker (custom listbox, replaces native <select>) ---------- */
@@ -668,7 +674,7 @@ a:focus-visible {
 
 .ex-picker-trigger[aria-expanded="true"] {
   border-color: var(--accent);
-  box-shadow: 0 0 0 4px rgba(57, 255, 20, 0.12);
+  box-shadow: 0 0 0 4px rgba(var(--accent-rgb), 0.12);
 }
 
 .ex-picker-trigger[aria-expanded="true"] .ex-picker-trigger-chevron {
@@ -746,7 +752,7 @@ a:focus-visible {
 
 .ex-picker-option:hover,
 .ex-picker-option--active {
-  background: rgba(57, 255, 20, 0.12);
+  background: rgba(var(--accent-rgb), 0.12);
   color: var(--accent);
 }
 
@@ -887,7 +893,7 @@ a:focus-visible {
   height: 84px;
   background: var(--surface-2);
   border-radius: 10px;
-  border: 1px solid rgba(57, 255, 20, 0.3);
+  border: 1px solid rgba(var(--accent-rgb), 0.3);
 }
 
 .movement-anim {
@@ -1281,7 +1287,7 @@ a:focus-visible {
 
 .history-item:hover {
   border-left-color: var(--accent);
-  background: rgba(57, 255, 20, 0.04);
+  background: rgba(var(--accent-rgb), 0.04);
 }
 
 .history-item:last-child {
@@ -1517,7 +1523,7 @@ a:focus-visible {
 .day-reschedule-option:hover {
   border-color: var(--accent);
   color: var(--accent);
-  background: rgba(57, 255, 20, 0.08);
+  background: rgba(var(--accent-rgb), 0.08);
 }
 
 .day-complete-row {
@@ -1540,7 +1546,7 @@ a:focus-visible {
 }
 
 .day-complete-btn:hover {
-  background: rgba(57, 255, 20, 0.1);
+  background: rgba(var(--accent-rgb), 0.1);
 }
 
 .day-complete-btn--done {
@@ -1551,7 +1557,7 @@ a:focus-visible {
 .split-day-time-badge {
   flex: 0 0 auto;
   text-align: center;
-  border: 1px solid rgba(57, 255, 20, 0.4);
+  border: 1px solid rgba(var(--accent-rgb), 0.4);
   border-radius: 10px;
   padding: 4px 12px;
   line-height: 1.1;
@@ -2528,8 +2534,8 @@ a:focus-visible {
   position: fixed;
   border: 2px solid var(--accent);
   border-radius: 14px;
-  background: rgba(57, 255, 20, 0.05);
-  box-shadow: 0 0 0 4px rgba(57, 255, 20, 0.15), 0 0 30px var(--accent-glow);
+  background: rgba(var(--accent-rgb), 0.05);
+  box-shadow: 0 0 0 4px rgba(var(--accent-rgb), 0.15), 0 0 30px var(--accent-glow);
   pointer-events: none;
   z-index: 2001;
   transition: top 0.3s ease, left 0.3s ease, width 0.3s ease, height 0.3s ease;

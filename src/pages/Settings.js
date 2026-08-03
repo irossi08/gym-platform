@@ -2,11 +2,10 @@ window.App = window.App || {};
 App.Pages = App.Pages || {};
 
 App.Pages.Settings = (function () {
+  // Background, surface/card, and text are fixed (black/near-black/white)
+  // -- only the accent is customizable here.
   const COLOR_FIELDS = [
-    { key: 'bg', id: 'set-bg', label: 'Background' },
-    { key: 'surface', id: 'set-surface', label: 'Surface / card' },
     { key: 'accent', id: 'set-accent', label: 'Accent' },
-    { key: 'text', id: 'set-text', label: 'Text' },
   ];
 
   function colorFieldHtml(field, value) {

@@ -11,7 +11,11 @@ App.Components = App.Components || {};
  * this app ships with no bundled assets.
  */
 App.Components.GoalCelebration = (function () {
-  const CONFETTI_COLORS = ['#39ff14', '#4dd0e1', '#ff6f61', '#ffd166', '#b388ff', '#64b5f6'];
+  // First entry is the live accent (a CSS custom property token works fine
+  // in an inline style attribute, same as in a stylesheet) so it always
+  // matches whatever accent color is currently set, not just the original
+  // green default.
+  const CONFETTI_COLORS = ['var(--accent)', '#4dd0e1', '#ff6f61', '#ffd166', '#b388ff', '#64b5f6'];
 
   function messageFor(goal) {
     const target = App.Units.round(goal.targetWeight, 1);

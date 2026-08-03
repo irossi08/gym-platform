@@ -7,17 +7,18 @@ window.App = window.App || {};
  * the root element at runtime and re-applying them on load -- no
  * alternate stylesheet needed.
  *
- * Only 4 colors are user-facing (background, surface/card, accent, text);
- * everything derived from them (secondary/muted text, borders, the
- * surface-2 tint used by inputs/badges, accent-ink for button text,
- * accent-glow for highlights) is computed here so those relationships
- * hold up for ANY chosen palette, not just the default green-on-black one.
+ * Background, surface/card, and text are fixed (black/near-black/white) --
+ * only the accent is user-facing, via Settings. Everything derived from it
+ * (accent-ink for button text, accent-glow for highlights, and every rule
+ * that reads var(--accent-rgb) for a custom-alpha tint) is computed here so
+ * those relationships hold up for ANY chosen accent, not just the default
+ * pink-on-black one.
  */
 App.Theme = (function () {
   const DEFAULTS = {
     bg: '#0a0a0a',
     surface: '#161616',
-    accent: '#39ff14',
+    accent: '#ff2ea6',
     text: '#f5f5f5',
     density: 'spacious',
     viewStyle: 'list',
@@ -79,6 +80,7 @@ App.Theme = (function () {
     root.setProperty('--border', 'rgba(' + rgbString(t.text) + ', 0.12)');
 
     root.setProperty('--accent', t.accent);
+    root.setProperty('--accent-rgb', rgbString(t.accent));
     root.setProperty('--accent-ink', luminance(t.accent) > 150 ? '#0a0a0a' : '#ffffff');
     root.setProperty('--accent-glow', 'rgba(' + rgbString(t.accent) + ', 0.35)');
 
