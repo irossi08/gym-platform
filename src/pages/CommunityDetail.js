@@ -33,7 +33,7 @@ App.Pages.CommunityDetail = (function () {
     const user = opts.user;
     const communityId = opts.communityId;
 
-    container.innerHTML = '<section class="page page-community-detail is-loading"><p class="app-boot-hint">Loading…</p></section>';
+    container.innerHTML = '<section class="page page-community-detail"><p class="app-boot-hint">Loading…</p></section>';
 
     Promise.all([
       App.Communities.getCommunity(communityId),

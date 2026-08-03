@@ -35,7 +35,7 @@ App.Pages.ChallengeDetail = (function () {
     const user = opts.user;
     const challengeId = opts.challengeId;
 
-    container.innerHTML = '<section class="page page-challenge-detail is-loading"><p class="app-boot-hint">Loading…</p></section>';
+    container.innerHTML = '<section class="page page-challenge-detail"><p class="app-boot-hint">Loading…</p></section>';
 
     Promise.all([
       App.Challenges.getChallenge(challengeId),

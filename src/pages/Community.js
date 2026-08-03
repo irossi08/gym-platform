@@ -23,7 +23,7 @@ App.Pages.Community = (function () {
     const user = opts.user;
     const joinCode = opts.joinCode;
 
-    container.innerHTML = '<section class="page page-community is-loading"><p class="app-boot-hint">Loading…</p></section>';
+    container.innerHTML = '<section class="page page-community"><p class="app-boot-hint">Loading…</p></section>';
 
     const joinStep = joinCode
       ? App.Communities.joinByCode(joinCode).then(function (res) { return res; })
