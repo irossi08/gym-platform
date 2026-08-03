@@ -142,7 +142,14 @@ App.Storage = (function () {
   }
 
   function saveProfile(userId, profile) {
-    cacheFor(userId).profile = profile;
+    // Merge rather than replace -- Split Builder's questionnaire and the
+    // profile setup/edit form each save only their own subset of fields
+    // (e.g. Split Builder never sends name/profilePictureType), and a full
+    // replace here would wipe whatever the other flow last set in the
+    // in-memory cache (the DB side is already safe: undefined keys drop out
+    // of the JSON body below, so upsert only ever touches columns actually
+    // passed in).
+    cacheFor(userId).profile = Object.assign({}, cacheFor(userId).profile, profile);
     db.from('profiles').upsert({
       user_id: userId,
       age: profile.age,
@@ -153,7 +160,46 @@ App.Storage = (function () {
       training_weekdays: profile.trainingWeekdays,
       time_per_session: profile.timePerSession,
       experience_level: profile.experienceLevel,
+      name: profile.name,
+      profile_picture_type: profile.profilePictureType,
+      profile_picture_url: profile.profilePictureUrl,
+      preset_avatar_id: profile.presetAvatarId,
     }, { onConflict: 'user_id' }).then(logIfError('saveProfile'));
+  }
+
+  // ---------- profile photo (Supabase Storage, private per-user bucket) ----------
+
+  const PROFILE_PHOTOS_BUCKET = 'profile-photos';
+
+  // Fixed path per user (no extension) so a re-upload always replaces the
+  // previous photo in place instead of leaving orphaned files behind;
+  // contentType on the upload carries the real image type for display.
+  function uploadProfilePhoto(userId, file) {
+    const path = userId + '/photo';
+    return db.storage.from(PROFILE_PHOTOS_BUCKET).upload(path, file, {
+      upsert: true,
+      contentType: file.type || 'image/jpeg',
+    }).then(function (res) {
+      if (res.error) {
+        console.error('[Storage] uploadProfilePhoto failed:', res.error);
+        throw res.error;
+      }
+      return path;
+    });
+  }
+
+  // The bucket is private, so there's no public URL to just store and
+  // reuse -- every render asks Storage for a fresh short-lived signed URL
+  // for whatever path is on the profile row.
+  function getProfilePhotoUrl(path) {
+    if (!path) return Promise.resolve(null);
+    return db.storage.from(PROFILE_PHOTOS_BUCKET).createSignedUrl(path, 3600).then(function (res) {
+      if (res.error) {
+        console.error('[Storage] getProfilePhotoUrl failed:', res.error);
+        return null;
+      }
+      return res.data.signedUrl;
+    });
   }
 
   // ---------- split (Build My Split's generated weekly plan) ----------
@@ -412,6 +458,8 @@ App.Storage = (function () {
           age: profileRow.age, bodyweight: profileRow.bodyweight, bodyweightUnit: profileRow.bodyweight_unit,
           sex: profileRow.sex, daysPerWeek: profileRow.days_per_week, trainingWeekdays: profileRow.training_weekdays,
           timePerSession: profileRow.time_per_session, experienceLevel: profileRow.experience_level,
+          name: profileRow.name, profilePictureType: profileRow.profile_picture_type,
+          profilePictureUrl: profileRow.profile_picture_url, presetAvatarId: profileRow.preset_avatar_id,
         } : null,
 
         split: (splitRow && Array.isArray(splitRow.days)) ? { days: splitRow.days } : null,
@@ -467,6 +515,7 @@ App.Storage = (function () {
     getHistory, saveHistory, addEntry, deleteEntry,
     getSettings, saveSettings,
     getProfile, saveProfile,
+    uploadProfilePhoto, getProfilePhotoUrl,
     getSplit, saveSplit,
     getCompletions, saveCompletions,
     getStreak, saveStreak,

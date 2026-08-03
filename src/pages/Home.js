@@ -2,6 +2,12 @@ window.App = window.App || {};
 App.Pages = App.Pages || {};
 
 App.Pages.Home = (function () {
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
   // Generic "how far from start to target" progress, sign-aware so it works
   // for both a decreasing target (lose weight) and an increasing one (gain
   // weight, raise a 1RM).
@@ -299,6 +305,65 @@ App.Pages.Home = (function () {
     });
   }
 
+  // Profile card: avatar (uploaded photo or preset), name/age/bodyweight,
+  // current streak, up to 3 most-recent earned medals overlapping the
+  // avatar's lower edge (the whole cluster links to the full Achievements
+  // list), and an edit pencil opening ProfileEditModal. The profile itself
+  // is guaranteed to exist by the time Home ever renders -- router.js
+  // redirects to the mandatory setup flow otherwise.
+  function renderProfileCard(container, user) {
+    const profile = App.Storage.getProfile(user.id);
+    const streak = App.Storage.getStreak(user.id);
+    const achievements = App.Storage.getAchievements(user.id)
+      .slice()
+      .sort(function (a, b) { return new Date(b.achievedAt) - new Date(a.achievedAt); });
+    const recentMedals = achievements.slice(0, 3);
+
+    const displayUnit = App.Storage.getSettings(user.id).displayUnit || profile.bodyweightUnit || 'kg';
+    const bwText = profile.bodyweight != null
+      ? App.Units.round(App.Units.convert(profile.bodyweight, profile.bodyweightUnit || 'kg', displayUnit), 1) + ' ' + displayUnit
+      : null;
+    const metaParts = [];
+    if (profile.age) metaParts.push(profile.age + ' yrs');
+    if (bwText) metaParts.push(bwText);
+
+    const avatarHtml = (profile.profilePictureType === 'preset' && profile.presetAvatarId)
+      ? App.Components.PresetAvatars.render(profile.presetAvatarId)
+      : '<div class="profile-avatar-empty"></div>';
+
+    const medalsHtml = recentMedals.length
+      ? '<a href="#/achievements" class="profile-medals" aria-label="View all earned medals">' +
+          recentMedals.map(function (a) { return '<span class="profile-medal">' + App.Components.MedalIcon.render(a.tier) + '</span>'; }).join('') +
+        '</a>'
+      : '';
+
+    container.innerHTML =
+      '<div class="profile-card-inner">' +
+        '<div class="profile-avatar-wrap">' +
+          '<div class="profile-avatar" id="profile-avatar-slot">' + avatarHtml + '</div>' +
+          medalsHtml +
+        '</div>' +
+        '<div class="profile-info">' +
+          '<p class="profile-name">' + (profile.name ? escapeHtml(profile.name) : '') + '</p>' +
+          (metaParts.length ? '<p class="profile-meta">' + metaParts.join(' &middot; ') + '</p>' : '') +
+          '<p class="profile-streak">' + App.Components.StreakIcon.render(streak.count || 0) + '<span>' + (streak.count || 0) + ' day streak</span></p>' +
+        '</div>' +
+        '<button type="button" class="profile-edit-btn" id="profile-edit-btn" aria-label="Edit profile">&#9998;</button>' +
+      '</div>';
+
+    if (profile.profilePictureType === 'upload' && profile.profilePictureUrl) {
+      App.Storage.getProfilePhotoUrl(profile.profilePictureUrl).then(function (url) {
+        if (!url) return;
+        const slot = container.querySelector('#profile-avatar-slot');
+        if (slot) slot.innerHTML = '<img src="' + url + '" alt="Profile photo" />';
+      });
+    }
+
+    container.querySelector('#profile-edit-btn').addEventListener('click', function () {
+      App.Components.ProfileEditModal.open(user, function () { renderProfileCard(container, user); });
+    });
+  }
+
   function renderGoalCard(container, user) {
     const goal = App.Storage.getGoal(user.id);
     if (!goal) renderGoalPrompt(container, user);
@@ -389,6 +454,7 @@ App.Pages.Home = (function () {
           '<div class="page-title-row"><h1 class="page-title">Home</h1><div id="home-streak-badge"></div></div>' +
         '</div>' +
         '<div id="home-quick-links"></div>' +
+        '<div class="card profile-card" id="home-profile-container"></div>' +
         '<div class="card" id="home-goal-container"></div>' +
         '<div class="card" id="home-today-container"></div>' +
         '<div class="card" id="home-trend-container"></div>' +
@@ -400,6 +466,7 @@ App.Pages.Home = (function () {
     const goalEl = container.querySelector('#home-goal-container');
 
     App.Components.StreakBadge.render(streakBadgeEl, user);
+    renderProfileCard(container.querySelector('#home-profile-container'), user);
     renderGoalCard(goalEl, user);
     renderTodayWorkout(container.querySelector('#home-today-container'), user, function () {
       App.Components.StreakBadge.render(streakBadgeEl, user);

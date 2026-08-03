@@ -1,7 +1,7 @@
 window.App = window.App || {};
 
 App.Router = (function () {
-  const PROTECTED = ['home', 'one-rep-max', 'history', 'split-builder', 'achievements', 'settings'];
+  const PROTECTED = ['home', 'one-rep-max', 'history', 'split-builder', 'achievements', 'settings', 'profile-setup'];
   let navEl, rootEl;
   let lastUser = null, lastRoute = null;
 
@@ -43,6 +43,25 @@ App.Router = (function () {
     // nav link are never permanently stuck out of sync with the goal state.
     if (user) App.Goals.ensureArchived(user.id);
 
+    // Mandatory first-time profile setup: `name` is the one field only this
+    // flow ever sets, so its absence means the user has never completed it.
+    // Blocks every other protected route (including Home) -- and therefore
+    // blocks the onboarding tour too, since that only ever triggers on the
+    // home route below. Once complete, the setup route itself redirects
+    // home instead of being revisitable.
+    if (user) {
+      const profile = App.Storage.getProfile(user.id);
+      const profileComplete = !!(profile && profile.name);
+      if (!profileComplete && route !== 'profile-setup') {
+        navigate('profile-setup');
+        return;
+      }
+      if (profileComplete && route === 'profile-setup') {
+        navigate('home');
+        return;
+      }
+    }
+
     // Achievements only exists once there's something to show -- direct
     // navigation (typed URL, stale bookmark) before the first goal is
     // reached bounces to Home the same as the hidden nav link implies.
@@ -60,6 +79,8 @@ App.Router = (function () {
       App.Pages.Auth.render(rootEl, { mode: 'login' });
     } else if (route === 'signup') {
       App.Pages.Auth.render(rootEl, { mode: 'signup' });
+    } else if (route === 'profile-setup') {
+      App.Pages.ProfileSetup.render(rootEl, { user: user });
     } else if (route === 'home') {
       App.Pages.Home.render(rootEl, { user: user });
     } else if (route === 'one-rep-max') {

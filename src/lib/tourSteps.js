@@ -19,6 +19,11 @@ App.TourSteps = [
   // ---------- Home ----------
   {
     route: 'home',
+    target: '#home-profile-container',
+    message: 'This is your profile card — your picture (whichever you chose: an uploaded photo or a preset avatar), name, age, bodyweight, and current streak. Any medals you’ve earned sit right on the bottom edge of your picture, and tapping them opens the full list. The little pencil icon opens an edit form any time you want to update your details or swap your picture.',
+  },
+  {
+    route: 'home',
     target: '#home-trend-container',
     message: 'This is your 1-rep-max progress graph. Every set you log for each exercise plots here over time — the legend is color-coded and searchable, and the range selector above it lets you zoom from the last month out to the last year.',
   },
