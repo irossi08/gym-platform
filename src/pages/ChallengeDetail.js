@@ -24,11 +24,24 @@ App.Pages.ChallengeDetail = (function () {
       : (c.type === 'gain' ? 'Gain ' + c.targetKg + ' kg' : 'Lose ' + c.targetKg + ' kg');
   }
 
+  // BUG FIX: this used to fall back to `(p.startValue || 0)` when
+  // startValue was missing, which silently computed the delta against a
+  // baseline of 0 -- displaying the raw current weight (e.g. "71 of 5kg")
+  // instead of "no starting weight yet". Missing startValue is now its own
+  // explicit case, never a 0 stand-in.
   function progressText(c, p) {
-    if (p.currentValue == null) return 'No data logged yet';
-    if (c.type === 'strength') return App.Units.round(p.currentValue, 1) + '% of ' + c.targetPercent + '%';
-    const delta = c.type === 'gain' ? p.currentValue - (p.startValue || 0) : (p.startValue || 0) - p.currentValue;
-    return (delta >= 0 ? '+' : '') + App.Units.round(delta, 1) + ' kg of ' + c.targetKg + ' kg';
+    if (c.type === 'strength') {
+      if (p.currentValue == null) return '0% of ' + c.targetPercent + '% (no set logged yet)';
+      return App.Units.round(p.currentValue, 1) + '% of ' + c.targetPercent + '%';
+    }
+    if (p.startValue == null) return 'Needs a starting weight';
+    // No weigh-in since accepting yet -- show 0 progress rather than
+    // hiding them or erroring; they still appear in the leaderboard.
+    const current = p.currentValue == null ? p.startValue : p.currentValue;
+    const delta = c.type === 'gain' ? current - p.startValue : p.startValue - current;
+    const sign = delta > 0 ? '+' : ''; // delta itself renders its own "-" for negatives -- never clamped to 0
+    const deltaText = sign + App.Units.round(delta, 1) + ' kg of ' + c.targetKg + ' kg';
+    return p.currentValue == null ? deltaText + ' (no weigh-in yet)' : deltaText;
   }
 
   function render(container, opts) {
@@ -84,10 +97,22 @@ App.Pages.ChallengeDetail = (function () {
       : (isEnded ? '<div class="community-banner">This challenge has ended.</div>' : '');
 
     const inviteBannerHtml = mine && mine.status === 'invited'
-      ? '<div class="community-banner">' +
+      ? '<div class="community-banner" id="ch-invite-banner">' +
           '<span>You’ve been invited to this challenge.</span>' +
           '<button type="button" class="btn-accent-sm" id="ch-accept-btn">Accept</button>' +
           '<button type="button" class="btn-ghost-sm" id="ch-decline-btn">Decline</button>' +
+        '</div>'
+      : '';
+
+    // Retroactive fix path: an already-accepted gain/loss participant with
+    // no start_value on record (affected by the earlier bug, or invited
+    // before this change existed) gets prompted here instead of silently
+    // showing wrong numbers -- they still appear in the leaderboard in the
+    // meantime (progressText shows "Needs a starting weight").
+    const needsStartWeightBannerHtml = mine && mine.status === 'accepted' && challenge.type !== 'strength'
+        && mine.startValue == null && !challenge.endedAt
+      ? '<div class="community-banner" id="ch-start-weight-banner">' +
+          '<span>Enter your starting weight to track your progress in this challenge.</span>' +
         '</div>'
       : '';
 
@@ -129,6 +154,7 @@ App.Pages.ChallengeDetail = (function () {
         '<div id="ch-quick-links"></div>' +
         winnerBannerHtml +
         inviteBannerHtml +
+        needsStartWeightBannerHtml +
         '<div class="card">' +
           '<p class="challenge-target-line">' + targetLabel(challenge) + '</p>' +
           '<p class="field-hint">' + new Date(challenge.startDate).toLocaleDateString() + ' &ndash; ' + new Date(challenge.endDate).toLocaleDateString() + '</p>' +
@@ -153,8 +179,20 @@ App.Pages.ChallengeDetail = (function () {
     const acceptBtn = container.querySelector('#ch-accept-btn');
     if (acceptBtn) {
       acceptBtn.addEventListener('click', function () {
-        App.Challenges.respondToInvite(user, challenge, true).then(function () {
-          render(container, { user: user, challengeId: challenge.id });
+        if (challenge.type === 'strength') {
+          acceptBtn.disabled = true;
+          App.Challenges.respondToInvite(user, challenge, true).then(function () {
+            render(container, { user: user, challengeId: challenge.id });
+          });
+          return;
+        }
+        // Gain/Loss requires an explicit starting weight before accepting
+        // -- swap the invite banner for the weigh-in form rather than
+        // accepting first and asking after.
+        renderStartWeightForm(container.querySelector('#ch-invite-banner'), user, challenge, function (weightKg) {
+          App.Challenges.respondToInvite(user, challenge, true, weightKg).then(function () {
+            render(container, { user: user, challengeId: challenge.id });
+          });
         });
       });
     }
@@ -166,6 +204,45 @@ App.Pages.ChallengeDetail = (function () {
         });
       });
     }
+
+    const startWeightBanner = container.querySelector('#ch-start-weight-banner');
+    if (startWeightBanner) {
+      renderStartWeightForm(startWeightBanner, user, challenge, function (weightKg) {
+        App.Challenges.setStartValue(user, challenge, weightKg).then(function () {
+          render(container, { user: user, challengeId: challenge.id });
+        });
+      });
+    }
+  }
+
+  // Shared by both the accept-time prompt and the retroactive backfill
+  // prompt -- collects a weight+unit, converts to kg, logs it to the
+  // user's own bodyweight history (consistent with every other bodyweight
+  // entry point in this app), and hands the kg value to onSubmit.
+  function renderStartWeightForm(bannerEl, user, challenge, onSubmit) {
+    bannerEl.innerHTML =
+      '<div class="challenge-start-weight-form">' +
+        '<p>Enter your current weight to start this ' + (challenge.type === 'gain' ? 'gain' : 'loss') + ' challenge:</p>' +
+        '<div class="field-row">' +
+          '<div class="field"><input type="number" id="ch-start-weight-input" step="0.5" min="0" placeholder="e.g. 70" /></div>' +
+          '<div class="field field-narrow">' +
+            '<select id="ch-start-weight-unit"><option value="kg">kg</option><option value="lb">lb</option></select>' +
+          '</div>' +
+          '<button type="button" class="btn-accent-sm" id="ch-start-weight-confirm">Confirm</button>' +
+        '</div>' +
+        '<p class="field-error" id="ch-start-weight-error"></p>' +
+      '</div>';
+
+    bannerEl.querySelector('#ch-start-weight-confirm').addEventListener('click', function (e) {
+      const btn = e.currentTarget;
+      const errorEl = bannerEl.querySelector('#ch-start-weight-error');
+      const weight = parseFloat(bannerEl.querySelector('#ch-start-weight-input').value);
+      const unit = bannerEl.querySelector('#ch-start-weight-unit').value;
+      if (!(weight > 0)) { errorEl.textContent = 'Enter a weight greater than 0.'; return; }
+      btn.disabled = true;
+      App.Storage.addBodyweightEntry(user.id, { date: new Date().toISOString(), weight: weight, unit: unit });
+      onSubmit(App.Units.round(App.Units.convert(weight, unit, 'kg'), 2));
+    });
   }
 
   return { render };

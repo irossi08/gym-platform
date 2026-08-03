@@ -3151,6 +3151,14 @@ body[data-view-style="card"] .ex-picker-option {
   color: var(--text-secondary);
 }
 
+.challenge-start-weight-form {
+  width: 100%;
+}
+
+.challenge-start-weight-form p {
+  margin: 0 0 8px;
+}
+
 .community-banner--ok {
   border-left-color: var(--accent);
   color: var(--text-primary);

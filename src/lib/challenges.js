@@ -105,21 +105,28 @@ App.Challenges = (function () {
     });
   }
 
-  // Only meaningful for gain/loss -- captures the baseline bodyweight (kg)
-  // the moment a participant accepts, so their progress target is relative
-  // to where THEY started, not a shared absolute number.
-  function captureStartValue(user) {
-    const log = App.Storage.getBodyweightLog(user.id).slice().sort(function (a, b) { return new Date(b.date) - new Date(a.date); });
-    if (log.length) return App.Units.round(App.Units.convert(log[0].weight, log[0].unit, 'kg'), 2);
-    const profile = App.Storage.getProfile(user.id);
-    if (profile && profile.bodyweight != null) return App.Units.round(App.Units.convert(profile.bodyweight, profile.bodyweightUnit || 'kg', 'kg'), 2);
-    return null;
+  // For gain/loss, accepting REQUIRES an explicit starting weight (kg) --
+  // startWeightKg -- provided by the caller after prompting the user for
+  // it (see ChallengeDetail.js). Deliberately not inferred from the
+  // bodyweight log/profile anymore: that value could be stale or simply
+  // absent, and a missing start_value silently broke the progress display
+  // (it rendered as the raw current weight instead of a delta). Ignored
+  // for strength and for declines.
+  function respondToInvite(user, challenge, accept, startWeightKg) {
+    const patch = { status: accept ? 'accepted' : 'declined', responded_at: new Date().toISOString() };
+    if (accept && challenge.type !== 'strength' && startWeightKg != null) patch.start_value = startWeightKg;
+    return db.from('challenge_participants').update(patch).eq('challenge_id', challenge.id).eq('user_id', user.id)
+      .then(function (res) { return { ok: !res.error, error: res.error && res.error.message }; });
   }
 
-  function respondToInvite(user, challenge, accept) {
-    const patch = { status: accept ? 'accepted' : 'declined', responded_at: new Date().toISOString() };
-    if (accept && challenge.type !== 'strength') patch.start_value = captureStartValue(user);
-    return db.from('challenge_participants').update(patch).eq('challenge_id', challenge.id).eq('user_id', user.id)
+  // Backfills a starting weight for a participant who's already accepted
+  // but has no start_value on record -- the retroactive fix path for any
+  // challenge/participant affected before this change existed. Prompted
+  // for the same way as at accept time (see ChallengeDetail.js), just
+  // later.
+  function setStartValue(user, challenge, startWeightKg) {
+    return db.from('challenge_participants').update({ start_value: startWeightKg })
+      .eq('challenge_id', challenge.id).eq('user_id', user.id)
       .then(function (res) { return { ok: !res.error, error: res.error && res.error.message }; });
   }
 
@@ -198,6 +205,6 @@ App.Challenges = (function () {
 
   return {
     createChallenge, getChallenges, getChallenge, getParticipants,
-    respondToInvite, refreshMyProgress, progressRatio, hasReachedTarget,
+    respondToInvite, setStartValue, refreshMyProgress, progressRatio, hasReachedTarget,
   };
 })();
