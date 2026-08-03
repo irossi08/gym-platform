@@ -486,12 +486,26 @@ App.Pages.SplitBuilder = (function () {
       btn.addEventListener('click', function () {
         const weekday = parseInt(btn.dataset.weekday, 10);
         const key = App.Schedule.dateKey(App.Schedule.dateForWeekday(weekday));
-        const nowDone = !App.Schedule.isCompleted(user.id, key);
-        App.Schedule.setCompleted(user.id, key, weekday, nowDone);
-        App.Schedule.recalculateStreak(user.id, split);
-        App.Components.StreakBadge.render(container.querySelector('#sb-streak-badge'), user);
-        btn.classList.toggle('day-complete-btn--done', nowDone);
-        btn.innerHTML = nowDone ? '&#10003; Completed this week' : 'Mark complete';
+
+        // Un-completing stays a plain toggle -- no photo needed to correct
+        // a mistake. Completing now requires photo proof (or happens
+        // automatically via geolocation -- see GymAutoComplete), so it
+        // routes through the same modal Home's Today's Workout card uses.
+        if (App.Schedule.isCompleted(user.id, key)) {
+          App.Schedule.setCompleted(user.id, key, weekday, false);
+          App.Schedule.recalculateStreak(user.id, split);
+          App.Components.StreakBadge.render(container.querySelector('#sb-streak-badge'), user);
+          btn.classList.remove('day-complete-btn--done');
+          btn.innerHTML = 'Mark complete';
+          return;
+        }
+
+        App.Components.WorkoutCompleteModal.open(user, key, weekday, function () {
+          App.Schedule.recalculateStreak(user.id, split);
+          App.Components.StreakBadge.render(container.querySelector('#sb-streak-badge'), user);
+          btn.classList.add('day-complete-btn--done');
+          btn.innerHTML = '&#10003; Completed this week';
+        });
       });
     });
 

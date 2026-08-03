@@ -81,6 +81,7 @@ App.Pages.Auth = (function () {
         // renders, same as it always has.
         App.Storage.preloadAll(res.user.id).then(function () {
           App.Components.FriendRequestToast.init(res.user);
+          App.Components.GymAutoComplete.init(res.user);
           App.Router.navigate('home');
         });
       });

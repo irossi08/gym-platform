@@ -19,28 +19,9 @@ App.Components = App.Components || {};
 App.Components.FriendRequestToast = (function () {
   let unsubscribeFriends = null;
   let unsubscribeInvites = null;
-  let toastEl = null;
-  let hideTimer = null;
 
   function nameFor(profile) {
     return profile && profile.name ? profile.name : 'Someone';
-  }
-
-  function showToast(message) {
-    if (!toastEl) {
-      toastEl = document.createElement('div');
-      toastEl.className = 'friend-request-toast';
-      toastEl.addEventListener('click', function () { hideToast(); });
-      document.body.appendChild(toastEl);
-    }
-    toastEl.textContent = message; // textContent -- no HTML escaping needed/wanted here
-    clearTimeout(hideTimer);
-    hideTimer = setTimeout(hideToast, 5000);
-  }
-
-  function hideToast() {
-    clearTimeout(hideTimer);
-    if (toastEl) { toastEl.remove(); toastEl = null; }
   }
 
   function notifyForFriendRequests(user, rows) {
@@ -51,7 +32,7 @@ App.Components.FriendRequestToast = (function () {
       const message = rows.length === 1
         ? nameFor(profileMap[rows[0].sender_id]) + ' has sent you a friend request'
         : rows.length + ' new friend requests';
-      showToast(message);
+      App.Components.Toast.show(message);
       App.Components.FriendsBadge.refresh(user);
       App.Social.markRequestsNotified(ids);
     });
@@ -66,7 +47,7 @@ App.Components.FriendRequestToast = (function () {
     const ids = rows.map(function (r) { return r.id; });
 
     if (rows.length > 1) {
-      showToast(rows.length + ' new community invites');
+      App.Components.Toast.show(rows.length + ' new community invites');
       App.Communities.markInvitesNotified(ids);
       return;
     }
@@ -79,7 +60,7 @@ App.Components.FriendRequestToast = (function () {
     Promise.all([communityNamePromise, App.Social.profilesForUserIds([row.invited_by])]).then(function (results) {
       const communityName = results[0];
       const profileMap = results[1];
-      showToast(nameFor(profileMap[row.invited_by]) + ' invited you to join ' + communityName);
+      App.Components.Toast.show(nameFor(profileMap[row.invited_by]) + ' invited you to join ' + communityName);
       App.Communities.markInvitesNotified(ids);
     });
   }
@@ -107,7 +88,7 @@ App.Components.FriendRequestToast = (function () {
   function stop() {
     if (unsubscribeFriends) { unsubscribeFriends(); unsubscribeFriends = null; }
     if (unsubscribeInvites) { unsubscribeInvites(); unsubscribeInvites = null; }
-    hideToast();
+    App.Components.Toast.hide();
   }
 
   return { init, stop };

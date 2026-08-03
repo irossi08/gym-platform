@@ -434,30 +434,50 @@ App.Pages.Home = (function () {
       return;
     }
 
-    const completed = App.Schedule.isCompleted(user.id, todayKey);
+    const details = App.Schedule.getCompletionDetails(user.id, todayKey);
+    const completed = !!(details && details.completed);
     const minutes = App.SplitBuilder.estimateMinutes(day.exercises);
     const exerciseListHtml = day.exercises.map(function (ex) {
       return '<li>' + App.ExerciseLibrary.label(ex.lift) + '</li>';
     }).join('');
+
+    // Auto-detected (geolocation, App.Components.GymAutoComplete) and
+    // manual-with-photo (App.Components.WorkoutCompleteModal) are visually
+    // distinct completed states -- the point of the auto-detected label is
+    // specifically to make it obvious when that happened (see Settings'
+    // Gym Locations section for the foreground-only caveat).
+    const completionSectionHtml = completed
+      ? '<p class="home-complete-status' + (details.autoDetected ? ' home-complete-status--auto' : '') + '">' +
+          (details.autoDetected ? '📍 Auto-completed' : '&#10003; Completed (photo verified)') +
+        '</p>' +
+        '<button type="button" class="btn-ghost-sm" id="home-undo-complete">Undo</button>'
+      : '<button type="button" class="btn-primary home-complete-btn" id="home-mark-complete">Mark complete</button>';
 
     container.innerHTML =
       '<h2 class="section-title">Today&rsquo;s Workout</h2>' +
       '<p class="home-today-label">' + day.label + '</p>' +
       '<ul class="home-today-exercises">' + exerciseListHtml + '</ul>' +
       '<p class="home-today-time">~' + minutes + ' min</p>' +
-      '<button type="button" class="btn-primary home-complete-btn' + (completed ? ' home-complete-btn--done' : '') + '" id="home-mark-complete">' +
-        (completed ? '&#10003; Completed' : 'Mark complete') +
-      '</button>' +
+      completionSectionHtml +
       '<a href="#/split-builder" class="btn-ghost-sm home-link-btn">View full split</a>';
 
-    container.querySelector('#home-mark-complete').addEventListener('click', function () {
-      const nowCompleted = !App.Schedule.isCompleted(user.id, todayKey);
-      App.Schedule.setCompleted(user.id, todayKey, todayWd, nowCompleted);
-      const btn = container.querySelector('#home-mark-complete');
-      btn.classList.toggle('home-complete-btn--done', nowCompleted);
-      btn.innerHTML = nowCompleted ? '&#10003; Completed' : 'Mark complete';
-      onToggle();
-    });
+    const markBtn = container.querySelector('#home-mark-complete');
+    if (markBtn) {
+      markBtn.addEventListener('click', function () {
+        App.Components.WorkoutCompleteModal.open(user, todayKey, todayWd, function () {
+          renderTodayWorkout(container, user, onToggle);
+          onToggle();
+        });
+      });
+    }
+    const undoBtn = container.querySelector('#home-undo-complete');
+    if (undoBtn) {
+      undoBtn.addEventListener('click', function () {
+        App.Schedule.setCompleted(user.id, todayKey, todayWd, false);
+        renderTodayWorkout(container, user, onToggle);
+        onToggle();
+      });
+    }
   }
 
   function render(container, opts) {

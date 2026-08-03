@@ -14,6 +14,7 @@
     if (user) {
       await App.Storage.preloadAll(user.id);
       App.Components.FriendRequestToast.init(user);
+      App.Components.GymAutoComplete.init(user);
     }
 
     App.Router.init(navEl, rootEl);

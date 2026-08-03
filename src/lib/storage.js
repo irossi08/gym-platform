@@ -41,6 +41,7 @@ App.Storage = (function () {
       theme: {},
       addedExercises: [],
       customExercises: [],
+      gymLocations: [],
     };
   }
 
@@ -264,6 +265,66 @@ App.Storage = (function () {
     });
   }
 
+  // ---------- workout photo (manual completion proof, Supabase Storage,
+  // private per-user bucket -- same pattern as profile photos, including
+  // the resize step, just a different bucket and a per-date path since
+  // there's one of these per completed day rather than a single fixed
+  // photo) ----------
+
+  const WORKOUT_PHOTOS_BUCKET = 'workout-photos';
+
+  function uploadWorkoutPhoto(userId, dateKey, file) {
+    const path = userId + '/' + dateKey + '.jpg';
+    return resizeImageFile(file, MAX_PHOTO_DIMENSION).then(function (resized) {
+      return db.storage.from(WORKOUT_PHOTOS_BUCKET).upload(path, resized, {
+        upsert: true,
+        contentType: 'image/jpeg',
+      });
+    }).then(function (res) {
+      if (res.error) {
+        console.error('[Storage] uploadWorkoutPhoto failed:', res.error);
+        throw res.error;
+      }
+      return path;
+    });
+  }
+
+  function getWorkoutPhotoUrl(path) {
+    if (!path) return Promise.resolve(null);
+    return db.storage.from(WORKOUT_PHOTOS_BUCKET).createSignedUrl(path, 3600).then(function (res) {
+      if (res.error) {
+        console.error('[Storage] getWorkoutPhotoUrl failed:', res.error);
+        return null;
+      }
+      return res.data.signedUrl;
+    });
+  }
+
+  // ---------- gym locations (saved gyms for workout-completion
+  // auto-detection via geolocation -- see App.Components.GymAutoComplete) ----------
+
+  function getGymLocations(userId) {
+    return cacheFor(userId).gymLocations;
+  }
+
+  function addGymLocation(userId, location) {
+    const id = makeId();
+    const withId = Object.assign({ id: id }, location);
+    const list = getGymLocations(userId).concat([withId]);
+    cacheFor(userId).gymLocations = list;
+    db.from('gym_locations').insert({
+      id: id, user_id: userId, name: location.name, lat: location.lat, lng: location.lng,
+    }).then(logIfError('addGymLocation'));
+    return list;
+  }
+
+  function deleteGymLocation(userId, id) {
+    const list = getGymLocations(userId).filter(function (l) { return l.id !== id; });
+    cacheFor(userId).gymLocations = list;
+    db.from('gym_locations').delete().eq('id', id).then(logIfError('deleteGymLocation'));
+    return list;
+  }
+
   // ---------- split (Build My Split's generated weekly plan) ----------
 
   function getSplit(userId) {
@@ -288,7 +349,10 @@ App.Storage = (function () {
     cacheFor(userId).completions = list;
     if (list.length === 0) return;
     db.from('completions').upsert(list.map(function (e) {
-      return { user_id: userId, date: e.date, day_of_week: e.dayOfWeek, completed: e.completed };
+      return {
+        user_id: userId, date: e.date, day_of_week: e.dayOfWeek, completed: e.completed,
+        photo_url: e.photoUrl, auto_detected: e.autoDetected, completed_at: e.completedAt,
+      };
     }), { onConflict: 'user_id,date' }).then(logIfError('saveCompletions'));
   }
 
@@ -493,11 +557,12 @@ App.Storage = (function () {
       db.from('themes').select('*').eq('user_id', userId).maybeSingle(),
       db.from('user_added_exercises').select('*').eq('user_id', userId),
       db.from('user_custom_exercises').select('*').eq('user_id', userId),
+      db.from('gym_locations').select('*').eq('user_id', userId),
     ]).then(function (results) {
       const [
         entriesRes, settingsRes, profileRes, splitRes, completionsRes,
         streakRes, bwLogRes, goalRes, achievementsRes, themeRes,
-        addedExercisesRes, customExercisesRes,
+        addedExercisesRes, customExercisesRes, gymLocationsRes,
       ] = results;
 
       results.forEach(function (r, i) {
@@ -528,7 +593,10 @@ App.Storage = (function () {
         split: (splitRow && Array.isArray(splitRow.days)) ? { days: splitRow.days } : null,
 
         completions: (completionsRes.data || []).map(function (row) {
-          return { date: row.date, dayOfWeek: row.day_of_week, completed: row.completed };
+          return {
+            date: row.date, dayOfWeek: row.day_of_week, completed: row.completed,
+            photoUrl: row.photo_url, autoDetected: !!row.auto_detected, completedAt: row.completed_at,
+          };
         }),
 
         streak: streakRow
@@ -569,6 +637,10 @@ App.Storage = (function () {
             secondaryMuscle: row.secondary_muscle, description: row.description, pattern: row.pattern,
           };
         }),
+
+        gymLocations: (gymLocationsRes.data || []).map(function (row) {
+          return { id: row.id, name: row.name, lat: row.lat, lng: row.lng };
+        }),
       };
     });
   }
@@ -579,6 +651,8 @@ App.Storage = (function () {
     getSettings, saveSettings,
     getProfile, saveProfile,
     uploadProfilePhoto, getProfilePhotoUrl, getProfilePhotoUrls,
+    uploadWorkoutPhoto, getWorkoutPhotoUrl,
+    getGymLocations, addGymLocation, deleteGymLocation,
     getSplit, saveSplit,
     getCompletions, saveCompletions,
     getStreak, saveStreak,

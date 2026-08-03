@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.css" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -15,7 +16,9 @@
   <main id="app-root"></main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.js"></script>
   <script src="src/lib/supabaseClient.js"></script>
+  <script src="src/lib/mapboxClient.js"></script>
   <script src="src/lib/units.js"></script>
   <script src="src/lib/theme.js"></script>
   <script src="src/lib/oneRepMax.js"></script>
@@ -42,10 +45,13 @@
   <script src="src/components/MedalIcon.js"></script>
   <script src="src/components/PresetAvatars.js"></script>
   <script src="src/components/Avatar.js"></script>
+  <script src="src/components/Toast.js"></script>
   <script src="src/components/FriendsBadge.js"></script>
   <script src="src/components/FriendProfileModal.js"></script>
   <script src="src/components/FriendsPanel.js"></script>
   <script src="src/components/FriendRequestToast.js"></script>
+  <script src="src/components/GymAutoComplete.js"></script>
+  <script src="src/components/WorkoutCompleteModal.js"></script>
   <script src="src/components/ProfileForm.js"></script>
   <script src="src/components/ProfileEditModal.js"></script>
   <script src="src/components/StreakBadge.js"></script>

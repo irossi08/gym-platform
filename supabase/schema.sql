@@ -150,13 +150,39 @@ create table if not exists public.completions (
   date date not null,
   day_of_week integer,
   completed boolean not null default false,
+  photo_url text,
+  auto_detected boolean not null default false,
+  completed_at timestamptz,
   primary key (user_id, date)
 );
+
+-- ADD COLUMN IF NOT EXISTS so this is safe to re-run against a completions
+-- table that already existed before workout-completion verification did.
+alter table public.completions add column if not exists photo_url text;
+alter table public.completions add column if not exists auto_detected boolean not null default false;
+alter table public.completions add column if not exists completed_at timestamptz;
 
 alter table public.completions enable row level security;
 drop policy if exists "completions_owner" on public.completions;
 create policy "completions_owner" on public.completions
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- ---------- gym_locations (saved gyms for workout-completion auto-detection
+-- via geolocation -- see App.Components.GymAutoComplete) ----------
+create table if not exists public.gym_locations (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  name text not null,
+  lat double precision not null,
+  lng double precision not null,
+  created_at timestamptz not null default now()
+);
+
+alter table public.gym_locations enable row level security;
+drop policy if exists "gym_locations_owner" on public.gym_locations;
+create policy "gym_locations_owner" on public.gym_locations
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create index if not exists gym_locations_user_id_idx on public.gym_locations (user_id);
 
 -- ---------- streaks ----------
 create table if not exists public.streaks (
@@ -825,6 +851,42 @@ drop policy if exists "profile_photos_delete_own" on storage.objects;
 create policy "profile_photos_delete_own" on storage.objects
   for delete using (
     bucket_id = 'profile-photos' and auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+-- ---------- workout-photos storage bucket (manual workout-completion
+-- proof photos) ---------- Same shape as profile-photos in every respect
+-- -- private bucket, per-user-folder RLS, owner-only (no
+-- friends/community read access here, unlike profile photos -- this is
+-- private proof-of-attendance data, nobody else ever needs to see it).
+-- Path is "<user_id>/<date>.jpg" (one per completed day) rather than a
+-- fixed path, since unlike a profile photo there can be many of these per
+-- user over time.
+insert into storage.buckets (id, name, public)
+values ('workout-photos', 'workout-photos', false)
+on conflict (id) do nothing;
+
+drop policy if exists "workout_photos_select_own" on storage.objects;
+create policy "workout_photos_select_own" on storage.objects
+  for select using (
+    bucket_id = 'workout-photos' and auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+drop policy if exists "workout_photos_insert_own" on storage.objects;
+create policy "workout_photos_insert_own" on storage.objects
+  for insert with check (
+    bucket_id = 'workout-photos' and auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+drop policy if exists "workout_photos_update_own" on storage.objects;
+create policy "workout_photos_update_own" on storage.objects
+  for update using (
+    bucket_id = 'workout-photos' and auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+drop policy if exists "workout_photos_delete_own" on storage.objects;
+create policy "workout_photos_delete_own" on storage.objects
+  for delete using (
+    bucket_id = 'workout-photos' and auth.uid()::text = (storage.foldername(name))[1]
   );
 
 -- Community & Challenges needs friends/community members to be able to

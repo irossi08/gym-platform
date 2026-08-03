@@ -63,15 +63,31 @@ App.Schedule = (function () {
     return !!(entry && entry.completed);
   }
 
-  function setCompleted(userId, key, dayOfWeek, completed) {
+  // Full completion record for a date -- photoUrl/autoDetected/completedAt,
+  // used by the UI to show *how* a day was completed (auto-detected at a
+  // gym vs. manually with a photo), not just whether it was.
+  function getCompletionDetails(userId, key) {
+    const list = App.Storage.getCompletions(userId);
+    return list.find(function (e) { return e.date === key; }) || null;
+  }
+
+  // `extra` ({photoUrl, autoDetected}) is only meaningful when completing
+  // (completed=true) -- un-completing always clears both, since a photo/
+  // auto-detection flag shouldn't linger for a day that's no longer marked
+  // done.
+  function setCompleted(userId, key, dayOfWeek, completed, extra) {
     const list = App.Storage.getCompletions(userId);
     const idx = list.findIndex(function (e) { return e.date === key; });
-    if (idx !== -1) {
-      list[idx].completed = completed;
-      list[idx].dayOfWeek = dayOfWeek;
-    } else {
-      list.push({ date: key, dayOfWeek: dayOfWeek, completed: completed });
-    }
+    const patch = {
+      date: key,
+      dayOfWeek: dayOfWeek,
+      completed: completed,
+      photoUrl: completed ? ((extra && extra.photoUrl) || null) : null,
+      autoDetected: completed ? !!(extra && extra.autoDetected) : false,
+      completedAt: completed ? new Date().toISOString() : null,
+    };
+    if (idx !== -1) list[idx] = Object.assign({}, list[idx], patch);
+    else list.push(patch);
     App.Storage.saveCompletions(userId, list);
   }
 
@@ -161,6 +177,6 @@ App.Schedule = (function () {
 
   return {
     dateKey, parseDateKey, isoWeekday, mondayOfWeek, dateForWeekday, todayWeekday,
-    isCompleted, setCompleted, recalculateStreak,
+    isCompleted, setCompleted, getCompletionDetails, recalculateStreak,
   };
 })();

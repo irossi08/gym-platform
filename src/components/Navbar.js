@@ -96,6 +96,7 @@ App.Components.Navbar = (function () {
     if (logoutBtn) {
       logoutBtn.addEventListener('click', function () {
         App.Components.FriendRequestToast.stop();
+        App.Components.GymAutoComplete.stop();
         App.Auth.logout();
         window.location.hash = '#/';
       });
