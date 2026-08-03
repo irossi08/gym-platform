@@ -590,6 +590,16 @@ a:focus-visible {
   flex: 1;
 }
 
+/* A button placed directly inside a .field-row (not wrapped in .field, so
+   it doesn't get flex:1) still carries .btn-primary's own `width: 100%` --
+   in a flex row that makes it fight the input for space and squeeze it
+   down to almost nothing instead of sizing to its own label. Same fix
+   already applied to .goal-form-actions .btn-primary. */
+.field-row .btn-primary {
+  width: auto;
+  flex: 0 0 auto;
+}
+
 .field-narrow {
   flex: 0 0 88px !important;
 }
@@ -3512,4 +3522,103 @@ body[data-view-style="card"] .ex-picker-option {
 .page-community-detail.is-loading,
 .page-challenge-detail.is-loading {
   animation: none;
+}
+
+/* ---------- Home's Friends icon + dropdown ---------- */
+
+.home-friends-btn {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.home-friends-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.home-friends-icon {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+
+.friends-panel-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 1000;
+  overflow-y: auto;
+}
+
+.friends-panel {
+  position: relative;
+  width: 100%;
+  max-width: 380px;
+  max-height: 80vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 14px;
+  padding: 32px 24px 24px;
+  margin: auto;
+}
+
+.friends-panel-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.friends-panel-close:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.friends-panel-search {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text-primary);
+}
+
+.friends-panel-list {
+  max-height: 320px;
+  overflow-y: auto;
+  margin-bottom: 14px;
+}
+
+.friends-panel-manage-link {
+  display: block;
+  text-align: center;
 }

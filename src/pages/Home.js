@@ -8,6 +8,21 @@ App.Pages.Home = (function () {
     return div.innerHTML;
   }
 
+  // Single-person-plus-a-"+" glyph -- deliberately distinct from the
+  // two-person group icon used for Community in the bottom nav bar, so
+  // the two read as separate destinations rather than duplicates of each
+  // other.
+  function friendsIconSvg() {
+    return (
+      '<svg viewBox="0 0 24 24" class="home-friends-icon" aria-hidden="true">' +
+        '<circle cx="10" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="2" />' +
+        '<path d="M3 20c0-3.9 3.1-7 7-7s7 3.1 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />' +
+        '<line x1="19" y1="4" x2="19" y2="11" stroke="currentColor" stroke-width="2" stroke-linecap="round" />' +
+        '<line x1="15.5" y1="7.5" x2="22.5" y2="7.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" />' +
+      '</svg>'
+    );
+  }
+
   // Generic "how far from start to target" progress, sign-aware so it works
   // for both a decreasing target (lose weight) and an increasing one (gain
   // weight, raise a 1RM).
@@ -452,6 +467,7 @@ App.Pages.Home = (function () {
       '<section class="page page-home">' +
         '<div class="page-header">' +
           '<div class="page-title-row"><h1 class="page-title">Home</h1><div id="home-streak-badge"></div></div>' +
+          '<button type="button" class="home-friends-btn" id="home-friends-btn" title="Friends" aria-label="Friends">' + friendsIconSvg() + '</button>' +
         '</div>' +
         '<div id="home-quick-links"></div>' +
         '<div class="card profile-card" id="home-profile-container"></div>' +
@@ -461,6 +477,9 @@ App.Pages.Home = (function () {
       '</section>';
 
     App.Components.QuickLinks.render(container.querySelector('#home-quick-links'), user, 'home');
+    container.querySelector('#home-friends-btn').addEventListener('click', function () {
+      App.Components.FriendsPanel.open(user);
+    });
 
     const streakBadgeEl = container.querySelector('#home-streak-badge');
     const goalEl = container.querySelector('#home-goal-container');

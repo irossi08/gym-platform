@@ -251,6 +251,9 @@ App.Pages.Community = (function () {
     }
 
     btn.addEventListener('click', lookUp);
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); lookUp(); }
+    });
   }
 
   function wireRequestButtons(container, user) {
