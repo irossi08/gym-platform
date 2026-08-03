@@ -366,14 +366,42 @@ create table if not exists public.community_members (
 
 alter table public.community_members enable row level security;
 
--- Standard "group membership" RLS pattern: a member can see every
--- membership row for any community they themselves belong to (so the full
--- member list renders for them), not just their own row.
+-- A member can see every membership row for any community they themselves
+-- belong to (so the full member list renders for them), not just their
+-- own row. The naive way to write this is a subquery on community_members
+-- from within community_members' own policy -- that looks like the
+-- standard "group membership" RLS pattern seen in a lot of writeups, but
+-- it actually makes Postgres throw "infinite recursion detected in policy
+-- for relation community_members" (42P17), because evaluating the policy
+-- requires re-evaluating the same policy on the same table. Worse, that
+-- error doesn't stay contained: profiles_select_connections (further
+-- down) also queries community_members to check shared-community
+-- membership, so ANY query touching profiles' SELECT visibility --
+-- including an upsert's ON CONFLICT check -- transitively re-triggers this
+-- same recursion and fails with an error that looks like it's about a
+-- completely unrelated table. is_community_member() sidesteps this: it's
+-- security definer, so its internal query bypasses RLS entirely instead
+-- of re-invoking community_members_select.
+create or replace function public.is_community_member(p_community_id uuid, p_user_id uuid)
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.community_members
+    where community_id = p_community_id and user_id = p_user_id
+  );
+$$;
+
+grant execute on function public.is_community_member(uuid, uuid) to authenticated;
+
 drop policy if exists "community_members_select" on public.community_members;
 create policy "community_members_select" on public.community_members
   for select using (
     user_id = auth.uid()
-    or community_id in (select community_id from public.community_members where user_id = auth.uid())
+    or public.is_community_member(community_id, auth.uid())
   );
 
 -- Joining a PUBLIC community directly needs no invite code -- straight
