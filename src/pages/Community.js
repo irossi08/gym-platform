@@ -89,7 +89,7 @@ App.Pages.Community = (function () {
       ? '<ul class="community-people-list">' +
           fd.friends.map(function (r) {
             return (
-              '<li class="community-person-row" data-request-id="' + r.requestId + '">' +
+              '<li class="community-person-row community-person-row--clickable" data-request-id="' + r.requestId + '" data-user-id="' + r.userId + '">' +
                 '<div class="community-person-avatar"></div>' +
                 '<span class="community-person-name">' + nameOrFallback(r.profile) + '</span>' +
                 '<button type="button" class="btn-ghost-sm community-decline-btn" data-request-id="' + r.requestId + '">Unfriend</button>' +
@@ -190,6 +190,15 @@ App.Pages.Community = (function () {
     wireAddFriend(container, user);
     wireRequestButtons(container, user);
     wireCommunityActions(container, user);
+
+    container.querySelectorAll('.community-person-row--clickable').forEach(function (row) {
+      row.addEventListener('click', function () {
+        App.Components.FriendProfileModal.open(row.dataset.userId, user);
+      });
+    });
+    container.querySelectorAll('.community-person-row--clickable .community-decline-btn').forEach(function (btn) {
+      btn.addEventListener('click', function (e) { e.stopPropagation(); });
+    });
   }
 
   function wireIdCopy(container, profile) {

@@ -109,9 +109,81 @@ App.Social = (function () {
       });
   }
 
+  // Full profile view for a friend's card (App.Components.FriendProfileModal)
+  // -- age/bodyweight (profiles), streak count, and earned medals, mirroring
+  // what Home's own profile card shows. Only ever succeeds for an actual
+  // friend: streaks/achievements' RLS (streaks_select_friends,
+  // achievements_select_friends in schema.sql) only grants read access to
+  // confirmed friends, so a non-friend's rows simply come back empty rather
+  // than erroring.
+  function getFriendProfile(userId) {
+    return Promise.all([
+      db.from('profiles').select('*').eq('user_id', userId).maybeSingle(),
+      db.from('streaks').select('count').eq('user_id', userId).maybeSingle(),
+      db.from('achievements').select('id, tier, achieved_at').eq('user_id', userId),
+    ]).then(function (results) {
+      const profileRow = results[0].data;
+      if (!profileRow) return null;
+      const streakRow = results[1].data;
+      const achievementRows = results[2].data || [];
+      return {
+        profile: profileRowToObj(profileRow),
+        age: profileRow.age,
+        bodyweight: profileRow.bodyweight,
+        bodyweightUnit: profileRow.bodyweight_unit,
+        streakCount: streakRow ? streakRow.count : 0,
+        achievements: achievementRows
+          .slice()
+          .sort(function (a, b) { return new Date(b.achieved_at) - new Date(a.achieved_at); })
+          .map(function (row) { return { id: row.id, tier: row.tier, achievedAt: row.achieved_at }; }),
+      };
+    });
+  }
+
+  // Any pending incoming request never yet surfaced to this user (arrived
+  // while they were offline) -- shown once as a catch-up toast, then
+  // marked notified so it doesn't repeat on a later visit.
+  function getUnnotifiedIncomingRequests(userId) {
+    return db.from('friend_requests')
+      .select('*')
+      .eq('recipient_id', userId)
+      .eq('status', 'pending')
+      .eq('notified', false)
+      .then(function (res) {
+        if (res.error) {
+          console.error('[Social] getUnnotifiedIncomingRequests failed:', res.error);
+          return [];
+        }
+        return res.data || [];
+      });
+  }
+
+  function markRequestsNotified(requestIds) {
+    if (!requestIds || requestIds.length === 0) return Promise.resolve();
+    return db.from('friend_requests').update({ notified: true }).in('id', requestIds)
+      .then(function (res) { if (res.error) console.error('[Social] markRequestsNotified failed:', res.error); });
+  }
+
+  // Live: fires onInsert(row) the instant a new friend_requests row
+  // targeting userId is inserted, for as long as the app is open --
+  // App.Components.FriendRequestToast owns calling this once per session
+  // and tearing it down on logout. Requires friend_requests to be part of
+  // the supabase_realtime publication (see schema.sql) -- without that,
+  // this subscribes successfully but simply never fires.
+  function subscribeToFriendRequests(userId, onInsert) {
+    const channel = db
+      .channel('friend-requests-' + userId)
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'friend_requests', filter: 'recipient_id=eq.' + userId,
+      }, function (payload) { onInsert(payload.new); })
+      .subscribe();
+    return function unsubscribe() { db.removeChannel(channel); };
+  }
+
   return {
     findUserByPublicId, profilesForUserIds,
     sendFriendRequest, respondToFriendRequest,
-    getFriendData,
+    getFriendData, getFriendProfile,
+    getUnnotifiedIncomingRequests, markRequestsNotified, subscribeToFriendRequests,
   };
 })();

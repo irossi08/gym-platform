@@ -480,6 +480,7 @@ App.Pages.Home = (function () {
     container.querySelector('#home-friends-btn').addEventListener('click', function () {
       App.Components.FriendsPanel.open(user);
     });
+    App.Components.FriendsBadge.refresh(user);
 
     const streakBadgeEl = container.querySelector('#home-streak-badge');
     const goalEl = container.querySelector('#home-goal-container');

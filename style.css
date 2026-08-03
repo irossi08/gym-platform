@@ -3609,3 +3609,139 @@ body[data-view-style="card"] .ex-picker-option {
   display: block;
   text-align: center;
 }
+
+/* ---------- Friends: badge, clickable rows, friend profile modal, toast ---------- */
+
+.home-friends-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--status-critical);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.home-friends-btn {
+  position: relative;
+}
+
+.community-person-row--clickable {
+  cursor: pointer;
+}
+
+.community-person-row--clickable:hover .community-person-name {
+  color: var(--accent);
+}
+
+.friend-profile-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 1000;
+  overflow-y: auto;
+}
+
+.friend-profile-modal {
+  position: relative;
+  width: 100%;
+  max-width: 380px;
+  max-height: 85vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 14px;
+  padding: 32px 24px 24px;
+  margin: auto;
+  text-align: center;
+}
+
+.friend-profile-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.friend-profile-close:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.friend-profile-avatar-wrap {
+  margin: 0 auto 12px;
+  width: 76px;
+}
+
+.friend-profile-avatar-wrap .profile-avatar {
+  width: 76px;
+  height: 76px;
+  margin: 0 auto;
+}
+
+.friend-profile-name {
+  text-align: center;
+}
+
+.friend-profile-meta {
+  text-align: center;
+}
+
+.friend-profile-streak {
+  justify-content: center;
+}
+
+.friend-profile-modal .section-title {
+  text-align: left;
+}
+
+.friend-profile-modal .section-title::after {
+  left: 0;
+}
+
+.friend-profile-invite-status {
+  margin-top: 8px;
+  text-align: center;
+}
+
+.friend-request-toast {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1200;
+  max-width: 90vw;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 10px;
+  padding: 12px 18px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  cursor: pointer;
+}

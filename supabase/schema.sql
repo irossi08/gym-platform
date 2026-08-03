@@ -324,6 +324,57 @@ drop policy if exists "friend_requests_delete" on public.friend_requests;
 create policy "friend_requests_delete" on public.friend_requests
   for delete using (auth.uid() = sender_id or auth.uid() = recipient_id);
 
+-- Tracks whether this request has already been surfaced to the recipient
+-- as a toast -- set true the moment it's shown, whether that happens live
+-- (Realtime, while they're online) or as a one-time catch-up the next
+-- time they open the app after being offline when it arrived. The
+-- existing friend_requests_update policy (recipient-only) already covers
+-- the recipient setting this on their own incoming rows -- no RLS change
+-- needed for this column.
+alter table public.friend_requests add column if not exists notified boolean not null default false;
+
+-- Realtime: the recipient's client needs to hear about a new row the
+-- instant it's inserted (see App.Social.subscribeToFriendRequests). This
+-- table isn't part of the realtime publication by default, and
+-- `alter publication ... add table` has no IF NOT EXISTS form, hence the
+-- guard -- see the note in the accompanying message about confirming
+-- this in the Dashboard (Database -> Replication) if this block errors,
+-- e.g. because the supabase_realtime publication doesn't exist under
+-- that exact name on this project.
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'friend_requests'
+  ) then
+    alter publication supabase_realtime add table public.friend_requests;
+  end if;
+end $$;
+
+-- Shared "are these two users friends" check -- accepted rows only (unlike
+-- profiles_select_connections below, which also counts pending requests
+-- for a different reason). security definer for the same reason as
+-- is_community_member: a caller's own SELECT on friend_requests is
+-- already scoped to rows they're a party to, which is exactly what's
+-- being tested here, so bypassing RLS internally avoids any risk of the
+-- same class of recursion and keeps this reusable from policies on other
+-- tables (streaks, achievements) without each duplicating the query.
+create or replace function public.are_friends(p_user_a uuid, p_user_b uuid)
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.friend_requests
+    where status = 'accepted'
+      and ((sender_id = p_user_a and recipient_id = p_user_b) or (sender_id = p_user_b and recipient_id = p_user_a))
+  );
+$$;
+
+grant execute on function public.are_friends(uuid, uuid) to authenticated;
+
 -- ---------- communities ----------
 create table if not exists public.communities (
   id uuid primary key default gen_random_uuid(),
@@ -412,13 +463,28 @@ create policy "community_members_select" on public.community_members
 -- without ever being SELECT-able by non-members first. The creator is
 -- always allowed to add themselves regardless of visibility, so creating a
 -- private community still auto-joins its own creator via a plain insert.
+--
+-- Second clause: lets a community's CREATOR add one of their own friends
+-- directly (App.Communities.inviteFriendToCommunity) -- this is the
+-- "invite a friend to a community you created" feature, deliberately a
+-- direct add rather than a separate pending-invite flow (unlike friend
+-- requests and challenge invites, both of which do require the other side
+-- to accept). Scoped to communities you created (not just any you belong
+-- to) and to actual friends (are_friends), so this can't be used to add
+-- an arbitrary stranger to someone else's community.
 drop policy if exists "community_members_insert" on public.community_members;
 create policy "community_members_insert" on public.community_members
   for insert with check (
-    user_id = auth.uid()
-    and exists (
-      select 1 from public.communities c
-      where c.id = community_id and (c.visibility = 'public' or c.created_by = auth.uid())
+    (
+      user_id = auth.uid()
+      and exists (
+        select 1 from public.communities c
+        where c.id = community_id and (c.visibility = 'public' or c.created_by = auth.uid())
+      )
+    )
+    or (
+      exists (select 1 from public.communities c where c.id = community_id and c.created_by = auth.uid())
+      and public.are_friends(auth.uid(), user_id)
     )
   );
 
@@ -619,6 +685,23 @@ create policy "profiles_select_connections" on public.profiles
       where m1.user_id = auth.uid() and m2.user_id = profiles.user_id
     )
   );
+
+-- ---------- streaks & achievements: read access for friends ----------
+-- Friend profile viewing (App.Social.getFriendProfile) needs a friend's
+-- streak count and medal list, neither of which any earlier policy
+-- exposes -- both tables were, and remain, fully owner-only for
+-- insert/update/delete via their existing "for all" policies; these are
+-- second, additive SELECT-only policies that widen read access to
+-- confirmed (accepted) friends specifically, narrower than
+-- profiles_select_connections above (which also covers community members
+-- and pending requests, for different reasons that don't apply here).
+drop policy if exists "streaks_select_friends" on public.streaks;
+create policy "streaks_select_friends" on public.streaks
+  for select using (public.are_friends(auth.uid(), user_id));
+
+drop policy if exists "achievements_select_friends" on public.achievements;
+create policy "achievements_select_friends" on public.achievements
+  for select using (public.are_friends(auth.uid(), user_id));
 
 -- ---------- profile-photos storage bucket (uploaded profile pictures) ----------
 -- Private bucket -- there is no public URL for these files. The app always

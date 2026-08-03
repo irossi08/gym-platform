@@ -11,7 +11,10 @@
 
     await App.Auth.ready();
     const user = App.Auth.getCurrentUser();
-    if (user) await App.Storage.preloadAll(user.id);
+    if (user) {
+      await App.Storage.preloadAll(user.id);
+      App.Components.FriendRequestToast.init(user);
+    }
 
     App.Router.init(navEl, rootEl);
   }

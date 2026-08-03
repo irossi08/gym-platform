@@ -80,6 +80,7 @@ App.Pages.Auth = (function () {
         // else) can keep reading App.Storage synchronously the moment it
         // renders, same as it always has.
         App.Storage.preloadAll(res.user.id).then(function () {
+          App.Components.FriendRequestToast.init(res.user);
           App.Router.navigate('home');
         });
       });

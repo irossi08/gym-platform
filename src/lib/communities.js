@@ -108,8 +108,34 @@ App.Communities = (function () {
     });
   }
 
+  // For the "invite a friend to a community" flow -- deliberately just the
+  // ones this user created, not every community they belong to, matching
+  // the request that this be an owner-only action.
+  function getMyCreatedCommunities(userId) {
+    return db.from('communities').select('*').eq('created_by', userId).order('created_at', { ascending: false }).then(function (res) {
+      if (res.error) {
+        console.error('[Communities] getMyCreatedCommunities failed:', res.error);
+        return [];
+      }
+      return (res.data || []).map(communityRowToObj);
+    });
+  }
+
+  // Adds a friend directly, no separate accept step -- unlike friend
+  // requests and challenge invites. Only the community's creator can do
+  // this (community_members_insert in schema.sql also requires the target
+  // to actually be a friend), so this is a real "owner adds someone they
+  // trust" action, not an open invite mechanism.
+  function inviteFriendToCommunity(communityId, friendUserId) {
+    return db.from('community_members').insert({ community_id: communityId, user_id: friendUserId }).then(function (res) {
+      if (res.error && res.error.code !== '23505') return { ok: false, error: res.error.message };
+      return { ok: true };
+    });
+  }
+
   return {
     inviteLink, createCommunity, getCommunity, getMyCommunities,
     browsePublicCommunities, joinPublicCommunity, joinByCode, leaveCommunity, getMembers,
+    getMyCreatedCommunities, inviteFriendToCommunity,
   };
 })();

@@ -95,6 +95,7 @@ App.Components.Navbar = (function () {
     const logoutBtn = container.querySelector('#navbar-logout');
     if (logoutBtn) {
       logoutBtn.addEventListener('click', function () {
+        App.Components.FriendRequestToast.stop();
         App.Auth.logout();
         window.location.hash = '#/';
       });
