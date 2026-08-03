@@ -3,10 +3,10 @@ App.Pages = App.Pages || {};
 
 /**
  * Mandatory first-time profile setup. router.js redirects any protected
- * route here whenever the current user's profile has no name yet (the one
- * field only this flow ever sets), and redirects away from here back to
- * home once it does -- this page is never revisited after the first
- * completion; later edits happen via ProfileEditModal from Home instead.
+ * route here whenever the current user's profile.setupComplete flag isn't
+ * true yet, and redirects away from here back to home once it is -- this
+ * page is never revisited after the first completion; later edits happen
+ * via ProfileEditModal from Home instead.
  */
 App.Pages.ProfileSetup = (function () {
   function render(container, opts) {
@@ -27,7 +27,7 @@ App.Pages.ProfileSetup = (function () {
       profile: profile,
       mode: 'setup',
       onSave: function (fields) {
-        App.Storage.saveProfile(user.id, Object.assign({}, profile, fields));
+        App.Storage.saveProfile(user.id, Object.assign({}, profile, fields, { setupComplete: true }));
         App.Storage.addBodyweightEntry(user.id, {
           date: new Date().toISOString(),
           weight: fields.bodyweight,

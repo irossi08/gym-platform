@@ -164,6 +164,7 @@ App.Storage = (function () {
       profile_picture_type: profile.profilePictureType,
       profile_picture_url: profile.profilePictureUrl,
       preset_avatar_id: profile.presetAvatarId,
+      setup_complete: profile.setupComplete,
     }, { onConflict: 'user_id' }).then(logIfError('saveProfile'));
   }
 
@@ -199,6 +200,29 @@ App.Storage = (function () {
         return null;
       }
       return res.data.signedUrl;
+    });
+  }
+
+  // Batched version -- one request for N paths instead of N separate
+  // round trips. Used anywhere a list of OTHER people's avatars needs
+  // signing at once (friends list, community members, challenge
+  // leaderboard) -- firing a signed-url request per row was the main
+  // culprit behind slow loads on the Community pages, especially over a
+  // mobile connection where per-request latency is higher. Returns a
+  // {path: url} map; a path that failed to sign is simply absent.
+  function getProfilePhotoUrls(paths) {
+    const unique = Array.from(new Set((paths || []).filter(Boolean)));
+    if (unique.length === 0) return Promise.resolve({});
+    return db.storage.from(PROFILE_PHOTOS_BUCKET).createSignedUrls(unique, 3600).then(function (res) {
+      const map = {};
+      if (res.error) {
+        console.error('[Storage] getProfilePhotoUrls failed:', res.error);
+        return map;
+      }
+      (res.data || []).forEach(function (item) {
+        if (item.signedUrl && !item.error) map[item.path] = item.signedUrl;
+      });
+      return map;
     });
   }
 
@@ -460,7 +484,7 @@ App.Storage = (function () {
           timePerSession: profileRow.time_per_session, experienceLevel: profileRow.experience_level,
           name: profileRow.name, profilePictureType: profileRow.profile_picture_type,
           profilePictureUrl: profileRow.profile_picture_url, presetAvatarId: profileRow.preset_avatar_id,
-          publicId: profileRow.public_id,
+          publicId: profileRow.public_id, setupComplete: !!profileRow.setup_complete,
         } : null,
 
         split: (splitRow && Array.isArray(splitRow.days)) ? { days: splitRow.days } : null,
@@ -516,7 +540,7 @@ App.Storage = (function () {
     getHistory, saveHistory, addEntry, deleteEntry,
     getSettings, saveSettings,
     getProfile, saveProfile,
-    uploadProfilePhoto, getProfilePhotoUrl,
+    uploadProfilePhoto, getProfilePhotoUrl, getProfilePhotoUrls,
     getSplit, saveSplit,
     getCompletions, saveCompletions,
     getStreak, saveStreak,

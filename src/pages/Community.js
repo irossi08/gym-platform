@@ -148,10 +148,11 @@ App.Pages.Community = (function () {
         '<div class="card">' +
           '<h2 class="section-title">Friends</h2>' +
           '<div class="field-row">' +
-            '<div class="field"><input type="text" id="community-add-friend-input" placeholder="Friend’s ID" maxlength="8" /></div>' +
-            '<button type="button" class="btn-primary community-add-friend-btn" id="community-add-friend-btn">Add</button>' +
+            '<div class="field"><input type="text" id="community-add-friend-input" placeholder="e.g. user163745" maxlength="20" /></div>' +
+            '<button type="button" class="btn-primary community-add-friend-btn" id="community-add-friend-btn">Find</button>' +
           '</div>' +
           '<p class="field-error" id="community-add-friend-error"></p>' +
+          '<div id="community-add-friend-result"></div>' +
           incomingHtml +
           outgoingHtml +
           '<div class="community-subsection">' +
@@ -202,38 +203,51 @@ App.Pages.Community = (function () {
     });
   }
 
+  // Two explicit steps, not one: looking someone up by ID just shows who
+  // they are first (name + avatar) with its own "Send friend request"
+  // button, rather than firing the request the instant a match is found --
+  // makes it obvious a request is about to be sent, and to whom.
   function wireAddFriend(container, user) {
     const btn = container.querySelector('#community-add-friend-btn');
     const input = container.querySelector('#community-add-friend-input');
     const errorEl = container.querySelector('#community-add-friend-error');
-    btn.addEventListener('click', function () {
+    const resultEl = container.querySelector('#community-add-friend-result');
+
+    function lookUp() {
       errorEl.textContent = '';
+      resultEl.innerHTML = '';
       const id = input.value.trim();
       if (!id) { errorEl.textContent = 'Enter an ID.'; return; }
       btn.disabled = true;
       App.Social.findUserByPublicId(id).then(function (found) {
-        if (!found) {
-          errorEl.textContent = 'No user found with that ID.';
-          btn.disabled = false;
-          return;
-        }
-        if (found.userId === user.id) {
-          errorEl.textContent = 'That’s your own ID.';
-          btn.disabled = false;
-          return;
-        }
-        App.Social.sendFriendRequest(user.id, found.userId).then(function (res) {
-          if (!res.ok) {
-            errorEl.textContent = res.error && res.error.indexOf('duplicate') !== -1
-              ? 'You’re already friends or have a pending request with this person.'
-              : 'Could not send the request.';
-            btn.disabled = false;
-            return;
-          }
-          render(container, { user: user });
+        btn.disabled = false;
+        if (!found) { errorEl.textContent = 'No user found with that ID.'; return; }
+        if (found.userId === user.id) { errorEl.textContent = 'That’s your own ID.'; return; }
+        resultEl.innerHTML =
+          '<div class="community-found-user">' +
+            '<div class="community-person-avatar" id="community-found-avatar"></div>' +
+            '<span class="community-person-name">' + nameOrFallback(found) + '</span>' +
+            '<button type="button" class="btn-accent-sm" id="community-send-request-btn">Send friend request</button>' +
+          '</div>';
+        App.Components.Avatar.render(resultEl.querySelector('#community-found-avatar'), found);
+        resultEl.querySelector('#community-send-request-btn').addEventListener('click', function (e) {
+          const sendBtn = e.currentTarget;
+          sendBtn.disabled = true;
+          App.Social.sendFriendRequest(user.id, found.userId).then(function (res) {
+            if (!res.ok) {
+              errorEl.textContent = res.error && res.error.indexOf('duplicate') !== -1
+                ? 'You’re already friends or have a pending request with this person.'
+                : 'Could not send the request.';
+              sendBtn.disabled = false;
+              return;
+            }
+            render(container, { user: user });
+          });
         });
       });
-    });
+    }
+
+    btn.addEventListener('click', lookUp);
   }
 
   function wireRequestButtons(container, user) {

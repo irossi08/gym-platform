@@ -3165,6 +3165,23 @@ body[data-view-style="card"] .ex-picker-option {
   color: var(--accent);
 }
 
+.community-found-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 8px 0 12px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+.community-found-user .community-person-name {
+  flex: 1;
+  min-width: 80px;
+}
+
 .community-invite-link {
   font-family: inherit;
   font-size: 0.8rem;

@@ -48,15 +48,16 @@ App.Router = (function () {
     // nav link are never permanently stuck out of sync with the goal state.
     if (user) App.Goals.ensureArchived(user.id);
 
-    // Mandatory first-time profile setup: `name` is the one field only this
-    // flow ever sets, so its absence means the user has never completed it.
-    // Blocks every other protected route (including Home) -- and therefore
-    // blocks the onboarding tour too, since that only ever triggers on the
-    // home route below. Once complete, the setup route itself redirects
-    // home instead of being revisitable.
+    // Mandatory first-time profile setup: gated on the explicit
+    // setup_complete flag (set true only by ProfileSetup's onSave), not
+    // inferred from any other field being present. Blocks every other
+    // protected route (including Home) -- and therefore blocks the
+    // onboarding tour too, since that only ever triggers on the home route
+    // below. Once complete, the setup route itself redirects home instead
+    // of being revisitable.
     if (user) {
       const profile = App.Storage.getProfile(user.id);
-      const profileComplete = !!(profile && profile.name);
+      const profileComplete = !!(profile && profile.setupComplete);
       if (!profileComplete && route !== 'profile-setup') {
         navigate('profile-setup');
         return;

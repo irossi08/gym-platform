@@ -59,10 +59,13 @@ App.Communities = (function () {
       });
   }
 
+  // Capped at 30 results -- this is a search-driven list, not a full
+  // directory dump, so there's no need to ever fetch every public
+  // community up front.
   function browsePublicCommunities(search) {
     let query = db.from('communities').select('*').eq('visibility', 'public');
     if (search) query = query.ilike('name', '%' + search + '%');
-    return query.order('created_at', { ascending: false }).then(function (res) {
+    return query.order('created_at', { ascending: false }).limit(30).then(function (res) {
       if (res.error) {
         console.error('[Communities] browsePublicCommunities failed:', res.error);
         return [];

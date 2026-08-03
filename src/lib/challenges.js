@@ -70,8 +70,12 @@ App.Challenges = (function () {
     });
   }
 
+  // Capped rather than fetching a community's entire challenge history --
+  // 25 most recent is plenty for the list view, and avoids an
+  // ever-growing, unbounded payload on every visit to CommunityDetail as a
+  // community accumulates challenges over time.
   function getChallenges(communityId) {
-    return db.from('challenges').select('*').eq('community_id', communityId).order('created_at', { ascending: false }).then(function (res) {
+    return db.from('challenges').select('*').eq('community_id', communityId).order('created_at', { ascending: false }).limit(25).then(function (res) {
       if (res.error) {
         console.error('[Challenges] getChallenges failed:', res.error);
         return [];
