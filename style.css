@@ -75,7 +75,9 @@ a:focus-visible {
 #app-root {
   max-width: 640px;
   margin: 0 auto;
-  padding: 0 16px 56px;
+  /* Extra bottom padding clears the fixed quick-links bar (see
+     .page-quick-links) so content never sits hidden behind it. */
+  padding: 0 16px 96px;
 }
 
 .page-landing,
@@ -1865,29 +1867,56 @@ a:focus-visible {
 }
 
 /* Quick-jump row on every protected page -- shortcuts to the OTHER pages,
-   alongside the hamburger menu, not instead of it. */
+   alongside the hamburger menu, not instead of it. Fixed to the bottom of
+   the viewport (detached from the heading, always visible regardless of
+   scroll) rather than sitting inline under the page title. Single-line and
+   horizontally scrollable rather than wrapping, so its height stays
+   constant no matter how many links are showing -- #app-root's bottom
+   padding above is sized to match this fixed height. */
 .page-quick-links {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 500;
+  max-width: 640px;
+  margin: 0 auto;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  justify-content: space-evenly;
   gap: 8px;
-  margin-bottom: 16px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
 }
 
+/* No border/background box around each icon -- the bar itself already
+   gives contrast against scrolling content, a boxed button per icon would
+   just make these read as another grey chip like the page's own content
+   (e.g. the exercise picker's option chips), rather than as navigation. */
 .page-quick-link {
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 8px 14px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  background: var(--surface-2);
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  color: var(--accent);
   text-decoration: none;
-  transition: border-color 0.15s ease, color 0.15s ease;
+  filter: drop-shadow(0 0 4px var(--accent-glow));
+  transition: transform 0.15s ease, filter 0.15s ease;
 }
 
 .page-quick-link:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+  transform: translateY(-2px);
+  filter: drop-shadow(0 0 8px var(--accent-glow));
+}
+
+.page-quick-link-icon {
+  width: 20px;
+  height: 20px;
+  display: block;
 }
 
 .home-today-label {
