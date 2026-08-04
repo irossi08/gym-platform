@@ -1523,7 +1523,7 @@ a:focus-visible {
 .split-day-chevron {
   flex: 0 0 auto;
   color: var(--text-muted);
-  font-size: 0.7rem;
+  font-size: 1.3rem;
   padding-top: 2px;
   transition: transform 0.15s ease, color 0.15s ease;
 }
@@ -1535,6 +1535,14 @@ a:focus-visible {
 .split-day-chevron--open {
   transform: rotate(180deg);
   color: var(--accent);
+}
+
+/* This page's exercise pickers (swap/add) share the App.Components.
+   ExercisePicker component with several other pages -- scoped here
+   rather than raising .ex-picker-trigger-chevron's base size everywhere,
+   since only this page's chevrons were reported as too small. */
+.page-split .ex-picker-trigger-chevron {
+  font-size: 1rem;
 }
 
 .split-day-weekday {
@@ -1745,9 +1753,9 @@ a:focus-visible {
   border: none;
   background: transparent;
   color: var(--text-muted);
-  font-size: 0.7rem;
-  width: 24px;
-  height: 24px;
+  font-size: 1rem;
+  width: 32px;
+  height: 32px;
   cursor: pointer;
   transition: transform 0.15s ease, color 0.15s ease;
 }
@@ -1832,6 +1840,27 @@ a:focus-visible {
 
 .split-rest-select {
   width: auto;
+  min-height: 34px;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 22px;
+}
+
+.split-rest-select-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.split-rest-select-chevron {
+  position: absolute;
+  right: 3px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  font-size: 1rem;
+  color: var(--text-muted);
 }
 
 .split-rest-custom {

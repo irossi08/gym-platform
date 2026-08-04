@@ -186,14 +186,20 @@ App.Pages.SplitBuilder = (function () {
   function restSelectHtml(weekday, exIdx, restSeconds) {
     const presets = App.SplitBuilder.REST_PRESETS;
     const isPreset = presets.indexOf(restSeconds) !== -1;
+    // Wrapped so a custom-sized chevron can sit on top of the native
+    // select -- the browser's own dropdown arrow can't be resized
+    // directly, and was the smallest touch target on this page.
     const select =
-      '<select class="split-rest-select" data-weekday="' + weekday + '" data-idx="' + exIdx + '">' +
-        presets.map(function (s) {
-          const label = s < 120 ? s + 's' : (s / 60) + ' min';
-          return '<option value="' + s + '"' + (restSeconds === s ? ' selected' : '') + '>' + label + '</option>';
-        }).join('') +
-        '<option value="custom"' + (!isPreset ? ' selected' : '') + '>Custom</option>' +
-      '</select>';
+      '<span class="split-rest-select-wrap">' +
+        '<select class="split-rest-select" data-weekday="' + weekday + '" data-idx="' + exIdx + '">' +
+          presets.map(function (s) {
+            const label = s < 120 ? s + 's' : (s / 60) + ' min';
+            return '<option value="' + s + '"' + (restSeconds === s ? ' selected' : '') + '>' + label + '</option>';
+          }).join('') +
+          '<option value="custom"' + (!isPreset ? ' selected' : '') + '>Custom</option>' +
+        '</select>' +
+        '<span class="split-rest-select-chevron" aria-hidden="true">&#9662;</span>' +
+      '</span>';
     const custom =
       '<input type="number" class="split-rest-custom" min="0" step="5" value="' + restSeconds + '" ' +
         'data-weekday="' + weekday + '" data-idx="' + exIdx + '"' + (isPreset ? ' hidden' : '') + ' />';
