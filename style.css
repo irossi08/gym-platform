@@ -3032,6 +3032,105 @@ body[data-view-style="card"] .ex-picker-option {
   box-shadow: 0 0 12px var(--accent-glow);
 }
 
+.preset-section-label {
+  margin: 14px 0 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.preset-section-label:first-child {
+  margin-top: 0;
+}
+
+.mascot-customize {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.mascot-customize-preview {
+  flex: 0 0 auto;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+.mascot-customize-controls {
+  flex: 1;
+  min-width: 0;
+}
+
+.mascot-customize-label {
+  margin: 0 0 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.mascot-color-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.mascot-color-swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  padding: 0;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.mascot-color-swatch:hover {
+  transform: scale(1.1);
+}
+
+.mascot-color-swatch--selected {
+  border-color: var(--text-primary);
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent);
+}
+
+.mascot-accessory-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mascot-accessory-btn {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.mascot-accessory-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.mascot-accessory-btn--active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
 .profile-form-actions {
   display: flex;
   flex-wrap: wrap;

@@ -12,6 +12,15 @@ App.Components = App.Components || {};
  * picking a file clears any preset selection, and clicking a preset avatar
  * clears any chosen file, tracked in a single `choice` object rather than
  * two independent booleans so there's never a moment both are "set".
+ *
+ * Presets come in two generations (see App.Components.PresetAvatars): the
+ * original flat-color set, and the newer fitness-mascot set, where picking
+ * a character reveals a customize panel (color + accessory) below the
+ * grid. mascotState tracks that customization separately from `choice` --
+ * `choice.presetId` only ever holds the single composite id actually
+ * saved, while mascotState is what the color/accessory controls read and
+ * write, rebuilding that composite id via PresetAvatars.mascotId() on any
+ * change.
  */
 App.Components.ProfileForm = (function () {
   function escapeHtml(str) {
@@ -32,12 +41,44 @@ App.Components.ProfileForm = (function () {
       existingPath: profile && profile.profilePictureType === 'upload' ? profile.profilePictureUrl : null,
     };
 
+    // Mascot customization (color + accessory) -- only meaningful once a
+    // mascot is actually selected, but always initialized to sensible
+    // defaults (or, if this profile already has one picked, parsed back
+    // out of its composite id) so the customize panel has something
+    // reasonable to show the very first time it opens.
+    const existingMascot = App.Components.PresetAvatars.parseMascotId(choice.presetId);
+    const mascotState = existingMascot || {
+      charId: App.Components.PresetAvatars.MASCOTS[0].id,
+      colorId: App.Components.PresetAvatars.COLORS[0].id,
+      accessoryId: 'none',
+    };
+
     const presetGridHtml = App.Components.PresetAvatars.LIST.map(function (a) {
       return (
         '<button type="button" class="preset-avatar-option" data-preset-id="' + a.id + '" aria-label="' + a.label + '">' +
           App.Components.PresetAvatars.render(a.id) +
         '</button>'
       );
+    }).join('');
+
+    // Each mascot button previews its character in a fixed neutral look
+    // (first color, no accessory) -- picking one selects the CHARACTER;
+    // the actual color/accessory is then chosen below via the customize
+    // panel's own live preview, not by re-rendering all 14 of these.
+    const mascotGridHtml = App.Components.PresetAvatars.MASCOTS.map(function (m) {
+      return (
+        '<button type="button" class="preset-avatar-option" data-mascot-char="' + m.id + '" aria-label="' + m.label + '">' +
+          App.Components.PresetAvatars.render(App.Components.PresetAvatars.mascotId(m.id, App.Components.PresetAvatars.COLORS[0].id, 'none')) +
+        '</button>'
+      );
+    }).join('');
+
+    const colorSwatchesHtml = App.Components.PresetAvatars.COLORS.map(function (c) {
+      return '<button type="button" class="mascot-color-swatch" data-color-id="' + c.id + '" style="background:' + c.hex + '" aria-label="' + c.label + '"></button>';
+    }).join('');
+
+    const accessoryButtonsHtml = App.Components.PresetAvatars.ACCESSORIES.map(function (a) {
+      return '<button type="button" class="mascot-accessory-btn" data-accessory-id="' + a.id + '">' + a.label + '</button>';
     }).join('');
 
     container.innerHTML =
@@ -74,7 +115,19 @@ App.Components.ProfileForm = (function () {
             '<input type="file" accept="image/*" id="pf-photo-input" />' +
           '</div>' +
           '<div class="avatar-mode-panel" id="pf-preset-panel" hidden>' +
+            '<p class="preset-section-label">Originals</p>' +
             '<div class="preset-avatar-grid">' + presetGridHtml + '</div>' +
+            '<p class="preset-section-label">Mascots</p>' +
+            '<div class="preset-avatar-grid">' + mascotGridHtml + '</div>' +
+            '<div class="mascot-customize" id="pf-mascot-customize" hidden>' +
+              '<div class="mascot-customize-preview" id="pf-mascot-preview"></div>' +
+              '<div class="mascot-customize-controls">' +
+                '<p class="mascot-customize-label">Color</p>' +
+                '<div class="mascot-color-row">' + colorSwatchesHtml + '</div>' +
+                '<p class="mascot-customize-label">Accessory</p>' +
+                '<div class="mascot-accessory-row">' + accessoryButtonsHtml + '</div>' +
+              '</div>' +
+            '</div>' +
           '</div>' +
           '<p class="field-error" id="pf-avatar-error"></p>' +
         '</div>' +
@@ -96,7 +149,12 @@ App.Components.ProfileForm = (function () {
       presetPanel: container.querySelector('#pf-preset-panel'),
       uploadPreview: container.querySelector('#pf-upload-preview'),
       photoInput: container.querySelector('#pf-photo-input'),
-      presetButtons: container.querySelectorAll('.preset-avatar-option'),
+      presetButtons: container.querySelectorAll('.preset-avatar-option[data-preset-id]'),
+      mascotCharButtons: container.querySelectorAll('.preset-avatar-option[data-mascot-char]'),
+      mascotCustomize: container.querySelector('#pf-mascot-customize'),
+      mascotPreview: container.querySelector('#pf-mascot-preview'),
+      mascotColorBtns: container.querySelectorAll('.mascot-color-swatch'),
+      mascotAccessoryBtns: container.querySelectorAll('.mascot-accessory-btn'),
       avatarError: container.querySelector('#pf-avatar-error'),
       formError: container.querySelector('#pf-form-error'),
       submitBtn: container.querySelector('#pf-submit'),
@@ -115,6 +173,42 @@ App.Components.ProfileForm = (function () {
       els.presetButtons.forEach(function (btn) {
         btn.classList.toggle('preset-avatar-option--selected', choice.type === 'preset' && btn.dataset.presetId === choice.presetId);
       });
+      const selectedMascot = choice.type === 'preset' ? App.Components.PresetAvatars.parseMascotId(choice.presetId) : null;
+      els.mascotCharButtons.forEach(function (btn) {
+        btn.classList.toggle('preset-avatar-option--selected', !!selectedMascot && btn.dataset.mascotChar === selectedMascot.charId);
+      });
+    }
+
+    // The customize panel (live preview + color/accessory pickers) only
+    // shows once the current choice is actually a mascot -- picking an
+    // original avatar hides it again, since color/accessory don't apply
+    // to those. mascotState itself is intentionally NOT reset when it's
+    // hidden, so switching back to a mascot (even a different character)
+    // remembers whatever color/accessory was last chosen.
+    function refreshMascotCustomize() {
+      const selectedMascot = choice.type === 'preset' ? App.Components.PresetAvatars.parseMascotId(choice.presetId) : null;
+      els.mascotCustomize.hidden = !selectedMascot;
+      if (!selectedMascot) return;
+
+      els.mascotPreview.innerHTML = App.Components.PresetAvatars.render(choice.presetId);
+      els.mascotColorBtns.forEach(function (btn) {
+        btn.classList.toggle('mascot-color-swatch--selected', btn.dataset.colorId === mascotState.colorId);
+      });
+      els.mascotAccessoryBtns.forEach(function (btn) {
+        btn.classList.toggle('mascot-accessory-btn--active', btn.dataset.accessoryId === mascotState.accessoryId);
+      });
+    }
+
+    function selectMascot() {
+      choice.type = 'preset';
+      choice.presetId = App.Components.PresetAvatars.mascotId(mascotState.charId, mascotState.colorId, mascotState.accessoryId);
+      choice.file = null;
+      choice.existingPath = null;
+      els.photoInput.value = '';
+      els.avatarError.textContent = '';
+      refreshUploadPreview();
+      refreshPresetHighlight();
+      refreshMascotCustomize();
     }
 
     function refreshUploadPreview() {
@@ -159,12 +253,35 @@ App.Components.ProfileForm = (function () {
         els.avatarError.textContent = '';
         refreshUploadPreview();
         refreshPresetHighlight();
+        refreshMascotCustomize();
+      });
+    });
+
+    els.mascotCharButtons.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        mascotState.charId = btn.dataset.mascotChar;
+        selectMascot();
+      });
+    });
+
+    els.mascotColorBtns.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        mascotState.colorId = btn.dataset.colorId;
+        selectMascot();
+      });
+    });
+
+    els.mascotAccessoryBtns.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        mascotState.accessoryId = btn.dataset.accessoryId;
+        selectMascot();
       });
     });
 
     showPanel(choice.type === 'preset' ? 'preset' : 'upload');
     refreshPresetHighlight();
     refreshUploadPreview();
+    refreshMascotCustomize();
 
     if (isEdit) {
       els.cancelBtn.addEventListener('click', function () { opts.onCancel(); });
