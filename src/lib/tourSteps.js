@@ -113,11 +113,19 @@ App.TourSteps = [
   {
     route: 'split-builder',
     target: '.split-day-card:not(.split-day-card--rest)',
-    message: 'Each day is a fully editable card — open a row to change its sets, reps, or rest, or tap an exercise’s name to swap it for another.',
+    message: 'Each day starts collapsed to just its name, focus, and time estimate — tap a card to expand it into a fully editable exercise list: change sets, reps, or rest, or tap an exercise’s name to swap it for another.',
   },
   {
     route: 'split-builder',
     target: '.day-missed-btn',
+    // The day-card body (and everything in it, including this button) is
+    // collapsed by default -- open the first real day's card before
+    // spotlighting something inside it, same reasoning as Home's
+    // Progress-tab steps (a hidden target has a zero-size bounding rect).
+    before: function () {
+      const head = document.querySelector('.split-day-card:not(.split-day-card--rest) .split-day-head');
+      if (head && head.getAttribute('aria-expanded') !== 'true') head.click();
+    },
     message: 'Missed a workout? Tap here to reschedule it to another day — your streak stays safe as long as you complete it there instead.',
   },
 

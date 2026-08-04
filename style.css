@@ -1513,10 +1513,28 @@ a:focus-visible {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 8px;
+  cursor: pointer;
 }
 
 .split-day-heading {
   min-width: 0;
+}
+
+.split-day-chevron {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  padding-top: 2px;
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+
+.split-day-head:hover .split-day-chevron {
+  color: var(--accent);
+}
+
+.split-day-chevron--open {
+  transform: rotate(180deg);
+  color: var(--accent);
 }
 
 .split-day-weekday {

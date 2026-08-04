@@ -217,6 +217,15 @@ App.Pages.SplitBuilder = (function () {
   const expandedState = {};
   const rescheduleOpenState = {};
 
+  // Whether each day CARD itself (not a single exercise row) is expanded
+  // past its collapsed summary (weekday/focus/time). Every key starts
+  // absent -- and therefore falsy/collapsed -- uniformly; nothing ever
+  // seeds today's weekday in here, so no day auto-expands on its own.
+  // Module-level for the same reason as the maps above: a full re-render
+  // from editing something inside an already-open card (add/remove/swap
+  // an exercise, reschedule) must not collapse it back.
+  const dayOpenState = {};
+
   function renderResults(container, user, profile, split) {
     function persistAndRerender() {
       App.Storage.saveSplit(user.id, split);
@@ -282,6 +291,7 @@ App.Pages.SplitBuilder = (function () {
       const bucketsLabel = day.buckets.map(function (b) { return App.SplitBuilder.BUCKET_LABELS[b]; }).join(' + ');
       const minutes = App.SplitBuilder.estimateMinutes(day.exercises);
       const isRescheduleOpen = !!rescheduleOpenState[weekday];
+      const isDayOpen = !!dayOpenState[weekday];
 
       const rowsHtml = day.exercises.length === 0
         ? '<p class="empty-hint">No exercises in this day yet — add one below.</p>'
@@ -321,7 +331,7 @@ App.Pages.SplitBuilder = (function () {
 
       return (
         '<div class="card split-day-card" data-weekday="' + weekday + '">' +
-          '<div class="split-day-head">' +
+          '<div class="split-day-head" data-weekday="' + weekday + '" role="button" tabindex="0" aria-expanded="' + isDayOpen + '">' +
             '<div class="split-day-heading">' +
               '<p class="split-day-weekday">' + WEEKDAY_NAMES[weekday] + '</p>' +
               '<h3 class="split-day-title">' + day.label + '</h3>' +
@@ -331,23 +341,26 @@ App.Pages.SplitBuilder = (function () {
               '<span class="split-day-time-value">' + minutes + '</span>' +
               '<span class="split-day-time-unit">min</span>' +
             '</div>' +
+            '<span class="split-day-chevron' + (isDayOpen ? ' split-day-chevron--open' : '') + '" aria-hidden="true">&#9662;</span>' +
           '</div>' +
-          rowsHtml +
-          '<div class="split-add-row">' +
-            '<div class="ex-picker-slot ex-add-slot" data-weekday="' + weekday + '"></div>' +
-            '<button type="button" class="btn-ghost-sm split-add-btn" data-weekday="' + weekday + '">+ Add exercise</button>' +
-          '</div>' +
-          '<div class="day-complete-row">' +
-            '<button type="button" class="day-complete-btn' + (isDone ? ' day-complete-btn--done' : '') + '" data-weekday="' + weekday + '">' +
-              (isDone ? '&#10003; Completed this week' : 'Mark complete') +
-            '</button>' +
-          '</div>' +
-          '<div class="day-missed-row">' +
-            '<button type="button" class="btn-ghost-sm day-missed-btn' + (isRescheduleOpen ? ' day-missed-btn--open' : '') + '" data-weekday="' + weekday + '">' + (isRescheduleOpen ? 'Cancel' : 'Missed this workout') + '</button>' +
-          '</div>' +
-          '<div class="day-reschedule"' + (isRescheduleOpen ? '' : ' hidden') + ' data-weekday="' + weekday + '">' +
-            '<p class="day-reschedule-label">Move this workout to:</p>' +
-            '<div class="day-reschedule-options">' + rescheduleOptionsHtml + '</div>' +
+          '<div class="split-day-body" data-weekday="' + weekday + '"' + (isDayOpen ? '' : ' hidden') + '>' +
+            rowsHtml +
+            '<div class="split-add-row">' +
+              '<div class="ex-picker-slot ex-add-slot" data-weekday="' + weekday + '"></div>' +
+              '<button type="button" class="btn-ghost-sm split-add-btn" data-weekday="' + weekday + '">+ Add exercise</button>' +
+            '</div>' +
+            '<div class="day-complete-row">' +
+              '<button type="button" class="day-complete-btn' + (isDone ? ' day-complete-btn--done' : '') + '" data-weekday="' + weekday + '">' +
+                (isDone ? '&#10003; Completed this week' : 'Mark complete') +
+              '</button>' +
+            '</div>' +
+            '<div class="day-missed-row">' +
+              '<button type="button" class="btn-ghost-sm day-missed-btn' + (isRescheduleOpen ? ' day-missed-btn--open' : '') + '" data-weekday="' + weekday + '">' + (isRescheduleOpen ? 'Cancel' : 'Missed this workout') + '</button>' +
+            '</div>' +
+            '<div class="day-reschedule"' + (isRescheduleOpen ? '' : ' hidden') + ' data-weekday="' + weekday + '">' +
+              '<p class="day-reschedule-label">Move this workout to:</p>' +
+              '<div class="day-reschedule-options">' + rescheduleOptionsHtml + '</div>' +
+            '</div>' +
           '</div>' +
         '</div>'
       );
@@ -366,6 +379,21 @@ App.Pages.SplitBuilder = (function () {
 
     App.Components.StreakBadge.render(container.querySelector('#sb-streak-badge'), user);
     App.Components.QuickLinks.render(container.querySelector('#sb-quick-links'), user, 'split-builder');
+
+    container.querySelectorAll('.split-day-head').forEach(function (head) {
+      function toggle() {
+        const weekday = parseInt(head.dataset.weekday, 10);
+        const isOpen = !dayOpenState[weekday];
+        dayOpenState[weekday] = isOpen;
+        head.setAttribute('aria-expanded', String(isOpen));
+        head.querySelector('.split-day-chevron').classList.toggle('split-day-chevron--open', isOpen);
+        head.parentElement.querySelector('.split-day-body').hidden = !isOpen;
+      }
+      head.addEventListener('click', toggle);
+      head.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+      });
+    });
 
     container.querySelectorAll('.ex-row-toggle').forEach(function (btn) {
       btn.addEventListener('click', function () {
