@@ -181,7 +181,9 @@ App.Challenges = (function () {
       .update({ winner_id: participant.userId, ended_at: new Date().toISOString() })
       .eq('id', challenge.id)
       .is('ended_at', null)
-      .then(function () {});
+      .then(function (res) {
+        if (!res.error) App.Communities.logChallengeCompleted(participant.userId, challenge.communityId, challenge.id);
+      });
   }
 
   // Recomputes and persists the CURRENT user's own progress for a
@@ -191,6 +193,17 @@ App.Challenges = (function () {
     if (!myParticipant || myParticipant.status !== 'accepted' || challenge.endedAt) {
       return Promise.resolve(myParticipant);
     }
+
+    // Leaderboard mode never sets ended_at (see createChallenge/schema
+    // notes -- there's no single winner to finalize) -- the window closing
+    // is detected here instead. Logs the completion once (the
+    // challenge_completed dedup index in schema.sql absorbs repeat
+    // attempts from re-viewing it later) and stops recomputing progress.
+    if (challenge.mode === 'leaderboard' && new Date() > new Date(challenge.endDate)) {
+      App.Communities.logChallengeCompleted(user.id, challenge.communityId, challenge.id);
+      return Promise.resolve(myParticipant);
+    }
+
     const currentValue = challenge.type === 'strength'
       ? computeStrengthCurrentValue(user, challenge)
       : computeGainLossCurrentValue(user, challenge);

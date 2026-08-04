@@ -116,6 +116,13 @@ App.Pages.OneRepMax = (function () {
 
     function handleSubmit(data) {
       const result = App.OneRepMax.estimate(data.weight, data.reps);
+
+      // Captured BEFORE adding this entry, so it's genuinely the prior
+      // best -- 0 if this is the first-ever logged set for this lift.
+      const priorBestKg = App.Storage.getHistory(user.id)
+        .filter(function (e) { return e.lift === data.lift; })
+        .reduce(function (max, e) { return Math.max(max, App.Units.convert(e.estimated1RM, e.unit, 'kg')); }, 0);
+
       const entry = {
         lift: data.lift,
         weight: data.weight,
@@ -132,6 +139,21 @@ App.Pages.OneRepMax = (function () {
       };
       App.Storage.addEntry(user.id, entry);
       App.Storage.addBodyweightEntry(user.id, { date: entry.date, weight: data.bodyweight, unit: data.unit });
+
+      // Only a genuinely new best (not just "logged a set") posts to the
+      // community activity feed -- and only once priorBestKg exists as a
+      // real baseline is this even meaningful the first time, but a first-
+      // ever logged set for a lift is trivially "above" a baseline of 0,
+      // which reads fine as "first PR on this exercise" too.
+      const newKg = App.Units.convert(result.average, data.unit, 'kg');
+      if (newKg > priorBestKg) {
+        App.Communities.logActivity(user.id, 'pr', {
+          lift: data.lift,
+          lift_label: App.ExerciseLibrary.label(data.lift),
+          value: App.Units.round(result.average, 1),
+          unit: data.unit,
+        });
+      }
 
       const achievedGoal = App.Goals.checkAchievement(user.id);
       if (achievedGoal) App.Components.GoalCelebration.celebrate(achievedGoal, user);

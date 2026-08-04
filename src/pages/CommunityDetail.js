@@ -29,6 +29,22 @@ App.Pages.CommunityDetail = (function () {
     return 'Active';
   }
 
+  function activityText(a) {
+    const name = a.profile && a.profile.name ? escapeHtml(a.profile.name) : 'Someone';
+    switch (a.type) {
+      case 'pr':
+        return name + ' hit a new PR: ' + a.value + ' ' + a.unit + ' on ' + (a.liftLabel ? escapeHtml(a.liftLabel) : 'an exercise');
+      case 'challenge_completed':
+        return name + ' completed a challenge';
+      case 'streak_milestone':
+        return name + ' reached a ' + a.value + '-day streak 🔥';
+      case 'member_joined':
+        return name + ' joined the community';
+      default:
+        return name + ' had some activity';
+    }
+  }
+
   function render(container, opts) {
     const user = opts.user;
     const communityId = opts.communityId;
@@ -39,17 +55,18 @@ App.Pages.CommunityDetail = (function () {
       App.Communities.getCommunity(communityId),
       App.Communities.getMembers(communityId),
       App.Challenges.getChallenges(communityId),
+      App.Communities.getRecentActivity(communityId),
     ]).then(function (results) {
       const community = results[0];
       if (!community) {
         container.innerHTML = '<section class="page page-community-detail"><p class="empty-hint">Community not found.</p></section>';
         return;
       }
-      renderPage(container, user, community, results[1], results[2]);
+      renderPage(container, user, community, results[1], results[2], results[3]);
     });
   }
 
-  function renderPage(container, user, community, members, challenges) {
+  function renderPage(container, user, community, members, challenges, activity) {
     const isMember = members.some(function (m) { return m.userId === user.id; });
 
     const memberListHtml = members.length
@@ -79,6 +96,22 @@ App.Pages.CommunityDetail = (function () {
           }).join('') +
         '</ul>'
       : '<p class="empty-hint">No challenges yet.</p>';
+
+    const activityHtml = activity.length
+      ? '<ul class="community-activity-list">' +
+          activity.map(function (a) {
+            return (
+              '<li class="community-activity-row" data-activity-id="' + a.id + '">' +
+                '<div class="community-person-avatar community-activity-avatar"></div>' +
+                '<div class="community-activity-info">' +
+                  '<p class="community-activity-text">' + activityText(a) + '</p>' +
+                  '<p class="community-activity-date">' + new Date(a.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + '</p>' +
+                '</div>' +
+              '</li>'
+            );
+          }).join('') +
+        '</ul>'
+      : '<p class="empty-hint">No activity yet — new PRs, streak milestones, completed challenges, and new members will show up here.</p>';
 
     const notMemberBannerHtml = !isMember
       ? (community.visibility === 'public'
@@ -118,12 +151,23 @@ App.Pages.CommunityDetail = (function () {
           challengesHtml +
           '<div id="cd-challenge-form-slot"></div>' +
         '</div>' +
+        '<div class="card">' +
+          '<h2 class="section-title">Activity</h2>' +
+          activityHtml +
+        '</div>' +
       '</section>';
 
-    App.Components.Avatar.renderList(members.map(function (m) {
-      const row = container.querySelector('.community-person-row[data-user-id="' + m.userId + '"]');
-      return { container: row ? row.querySelector('.community-person-avatar') : null, profile: m.profile };
-    }));
+    App.Components.Avatar.renderList(
+      members.map(function (m) {
+        const row = container.querySelector('.community-person-row[data-user-id="' + m.userId + '"]');
+        return { container: row ? row.querySelector('.community-person-avatar') : null, profile: m.profile };
+      }).concat(
+        activity.map(function (a) {
+          const row = container.querySelector('.community-activity-row[data-activity-id="' + a.id + '"]');
+          return { container: row ? row.querySelector('.community-activity-avatar') : null, profile: a.profile };
+        })
+      )
+    );
 
     App.Components.QuickLinks.render(container.querySelector('#cd-quick-links'), user, 'community');
 

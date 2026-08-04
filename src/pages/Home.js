@@ -480,6 +480,72 @@ App.Pages.Home = (function () {
     }
   }
 
+  // Entirely computed from data already sitting in App.Storage's sync
+  // cache (history, completions, streak) -- no new Supabase calls, no
+  // separate storage for this at all. "This month" = the current calendar
+  // month, recomputed fresh on every Home render, so it just naturally
+  // updates as the month progresses.
+  function computeMonthlyRecap(user) {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const displayUnit = App.Storage.getSettings(user.id).displayUnit || 'kg';
+
+    const workoutsThisMonth = App.Storage.getCompletions(user.id).filter(function (c) {
+      return c.completed && App.Schedule.parseDateKey(c.date) >= monthStart;
+    }).length;
+
+    const history = App.Storage.getHistory(user.id);
+    const setsThisMonth = history.filter(function (e) { return new Date(e.date) >= monthStart; }).length;
+
+    // Biggest 1RM increase this month: for each lift, the best estimate
+    // logged THIS month vs. the best logged BEFORE this month -- only
+    // counts a lift that has data on both sides, so "increase" means an
+    // actual improvement over a real prior baseline, not just a first-ever
+    // entry read as "infinite" progress.
+    const liftBuckets = {};
+    history.forEach(function (e) {
+      if (!liftBuckets[e.lift]) liftBuckets[e.lift] = { before: [], during: [] };
+      const kg = App.Units.convert(e.estimated1RM, e.unit, 'kg');
+      liftBuckets[e.lift][new Date(e.date) >= monthStart ? 'during' : 'before'].push(kg);
+    });
+    let biggestIncrease = null;
+    Object.keys(liftBuckets).forEach(function (lift) {
+      const b = liftBuckets[lift];
+      if (b.before.length === 0 || b.during.length === 0) return;
+      const deltaKg = Math.max.apply(null, b.during) - Math.max.apply(null, b.before);
+      if (deltaKg > 0 && (!biggestIncrease || deltaKg > biggestIncrease.deltaKg)) {
+        biggestIncrease = { lift: lift, deltaKg: deltaKg };
+      }
+    });
+
+    return {
+      monthLabel: now.toLocaleDateString(undefined, { month: 'long' }),
+      workoutsThisMonth: workoutsThisMonth,
+      setsThisMonth: setsThisMonth,
+      streakCount: App.Storage.getStreak(user.id).count || 0,
+      biggestIncrease: biggestIncrease,
+      displayUnit: displayUnit,
+    };
+  }
+
+  function renderMonthlyRecapCard(container, user) {
+    const recap = computeMonthlyRecap(user);
+
+    const highlightHtml = recap.biggestIncrease
+      ? '📈 Biggest gain: <strong>' + escapeHtml(App.ExerciseLibrary.label(recap.biggestIncrease.lift)) + '</strong> up ' +
+        App.Units.round(App.Units.convert(recap.biggestIncrease.deltaKg, 'kg', recap.displayUnit), 1) + ' ' + recap.displayUnit + ' this month'
+      : 'Log a few more sets this month to see your progress highlighted here.';
+
+    container.innerHTML =
+      '<h2 class="section-title">' + recap.monthLabel + ' So Far</h2>' +
+      '<div class="monthly-recap-grid">' +
+        '<div class="monthly-recap-stat"><span class="monthly-recap-value">' + recap.workoutsThisMonth + '</span><span class="monthly-recap-label">Workouts</span></div>' +
+        '<div class="monthly-recap-stat"><span class="monthly-recap-value">' + recap.setsThisMonth + '</span><span class="monthly-recap-label">Sets logged</span></div>' +
+        '<div class="monthly-recap-stat"><span class="monthly-recap-value">' + recap.streakCount + '</span><span class="monthly-recap-label">Day streak</span></div>' +
+      '</div>' +
+      '<p class="monthly-recap-highlight">' + highlightHtml + '</p>';
+  }
+
   function render(container, opts) {
     const user = opts.user;
 
@@ -491,6 +557,7 @@ App.Pages.Home = (function () {
         '</div>' +
         '<div id="home-quick-links"></div>' +
         '<div class="card profile-card" id="home-profile-container"></div>' +
+        '<div class="card" id="home-recap-container"></div>' +
         '<div class="card" id="home-goal-container"></div>' +
         '<div class="card" id="home-today-container"></div>' +
         '<div class="card" id="home-trend-container"></div>' +
@@ -507,6 +574,7 @@ App.Pages.Home = (function () {
 
     App.Components.StreakBadge.render(streakBadgeEl, user);
     renderProfileCard(container.querySelector('#home-profile-container'), user);
+    renderMonthlyRecapCard(container.querySelector('#home-recap-container'), user);
     renderGoalCard(goalEl, user);
     renderTodayWorkout(container.querySelector('#home-today-container'), user, function () {
       App.Components.StreakBadge.render(streakBadgeEl, user);

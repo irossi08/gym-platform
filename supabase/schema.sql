@@ -574,8 +574,10 @@ end $$;
 -- deliberately grants no direct path for this (see above), so this
 -- security-definer function does both, bypassing RLS internally, after
 -- verifying the caller IS the invited user and the invite is still pending.
+-- Returns the community_id (rather than void) so the client can log a
+-- member_joined community_activity row without a second round trip.
 create or replace function public.accept_community_invite(p_invite_id uuid)
-returns void
+returns uuid
 language plpgsql
 security definer
 set search_path = public
@@ -595,6 +597,8 @@ begin
   insert into public.community_members (community_id, user_id)
   values (v_community_id, auth.uid())
   on conflict (community_id, user_id) do nothing;
+
+  return v_community_id;
 end;
 $$;
 
@@ -914,6 +918,60 @@ create policy "profile_photos_select_connections" on storage.objects
         where m1.user_id = auth.uid() and m2.user_id::text = (storage.foldername(name))[1]
       )
     )
+  );
+
+-- ---------- community_activity (per-community feed: new PRs, completed
+-- challenges, streak milestones, members joining) ----------
+-- lift_label is denormalized the same way and for the same reason as
+-- challenges.lift_label: `lift` can point at the ACTING user's own
+-- private custom exercise, which a different community member's client
+-- has no way to resolve to a name -- the logging user's own client
+-- captures the label once at insert time instead.
+create table if not exists public.community_activity (
+  id uuid primary key default gen_random_uuid(),
+  community_id uuid not null references public.communities(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  type text not null check (type in ('pr', 'challenge_completed', 'streak_milestone', 'member_joined')),
+  lift text,
+  lift_label text,
+  value numeric,
+  unit text,
+  challenge_id uuid references public.challenges(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists community_activity_feed_idx on public.community_activity (community_id, created_at desc);
+
+-- Dedup for the three event types that should only ever post once per
+-- (community, user, thing) -- a repeat attempt (e.g. re-viewing a
+-- leaderboard challenge after its window closed, or the streak
+-- recalculation re-running on every navigation while still at the same
+-- milestone) just hits a unique-violation, which the app treats as
+-- "already logged, fine" rather than an error. 'pr' has no dedup: each
+-- new best is a genuinely distinct event even if the same lift gets
+-- multiple PRs over time.
+create unique index if not exists community_activity_streak_dedup
+  on public.community_activity (community_id, user_id, value)
+  where type = 'streak_milestone';
+
+create unique index if not exists community_activity_challenge_dedup
+  on public.community_activity (community_id, user_id, challenge_id)
+  where type = 'challenge_completed';
+
+create unique index if not exists community_activity_joined_dedup
+  on public.community_activity (community_id, user_id)
+  where type = 'member_joined';
+
+alter table public.community_activity enable row level security;
+
+drop policy if exists "community_activity_select" on public.community_activity;
+create policy "community_activity_select" on public.community_activity
+  for select using (public.is_community_member(community_id, auth.uid()));
+
+drop policy if exists "community_activity_insert" on public.community_activity;
+create policy "community_activity_insert" on public.community_activity
+  for insert with check (
+    user_id = auth.uid() and public.is_community_member(community_id, auth.uid())
   );
 
 -- ---------- verification ----------

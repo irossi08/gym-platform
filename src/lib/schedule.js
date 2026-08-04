@@ -172,6 +172,19 @@ App.Schedule = (function () {
     });
 
     App.Storage.saveStreak(userId, streak);
+
+    // Community feed: post once per (community, milestone) the moment the
+    // count lands exactly on one -- an exact match rather than >=, so this
+    // doesn't attempt an insert on every navigation for every day beyond
+    // the threshold too. Harmless either way (the streak_milestone dedup
+    // index in schema.sql rejects a repeat), but no reason to try more
+    // than necessary. App.Communities may not be loaded on every page in
+    // theory, so guard against that rather than assume it.
+    const STREAK_MILESTONES = [7, 30, 100];
+    if (STREAK_MILESTONES.indexOf(streak.count) !== -1 && window.App.Communities) {
+      App.Communities.logActivity(userId, 'streak_milestone', { value: streak.count });
+    }
+
     return streak;
   }
 
