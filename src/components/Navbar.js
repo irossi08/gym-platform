@@ -90,7 +90,10 @@ App.Components.Navbar = (function () {
             '</button>' +
             '<div class="navbar-menu" role="menu"><div class="navbar-menu-inner">' + menuHtml + '</div></div>' +
           '</div>' +
-          '<a href="#/" class="navbar-brand">CRIMSON<span class="navbar-brand-accent">REP</span></a>' +
+          '<a href="#/" class="navbar-brand">' +
+          '<img src="icons/cr-mark.png" class="navbar-brand-mark" alt="" aria-hidden="true" />' +
+          'CRIMSON<span class="navbar-brand-accent">REP</span>' +
+        '</a>' +
         '</div>' +
         '<div class="navbar-right">' +
           '<a href="#/profile" class="navbar-profile-link' + ((activeRoute || '').split('/')[0] === 'profile' ? ' navbar-profile-link--active' : '') + '" title="Profile" aria-label="Profile">' +
@@ -103,7 +106,10 @@ App.Components.Navbar = (function () {
         '</div>';
     } else {
       bodyHtml =
-        '<a href="#/" class="navbar-brand">CRIMSON<span class="navbar-brand-accent">REP</span></a>' +
+        '<a href="#/" class="navbar-brand">' +
+          '<img src="icons/cr-mark.png" class="navbar-brand-mark" alt="" aria-hidden="true" />' +
+          'CRIMSON<span class="navbar-brand-accent">REP</span>' +
+        '</a>' +
         '<div class="navbar-links">' +
           link('#/login', 'Log in', 'login', activeRoute) +
           link('#/signup', 'Get Started', 'signup', activeRoute, 'btn-accent-sm') +

@@ -17,7 +17,7 @@
 // file's own bytes -- if this string doesn't change, the browser has no
 // way to know the precached files are stale, and anyone with the PWA
 // already installed keeps getting the old cached version indefinitely.
-const CACHE_VERSION = 'crimson-rep-v20';
+const CACHE_VERSION = 'crimson-rep-v21';
 
 const PRECACHE_URLS = [
   './',
@@ -96,6 +96,7 @@ const PRECACHE_URLS = [
   './src/router.js',
   './src/app.js',
 
+  './icons/cr-mark.png',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/icon-192-maskable.png',

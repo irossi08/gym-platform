@@ -20,12 +20,13 @@ App.Pages.Landing = (function () {
     container.innerHTML =
       '<section class="page page-landing">' +
         '<div class="hero">' +
-          '<p class="hero-eyebrow animate-in" style="animation-delay:0ms">TRACK. RANK. PROGRESS.</p>' +
-          '<h1 class="hero-headline animate-in" style="animation-delay:80ms">FIND YOUR<br>TRUE MAX.</h1>' +
-          '<p class="hero-pitch animate-in" style="animation-delay:160ms">' +
+          '<img src="icons/cr-mark.png" class="hero-logo animate-in" style="animation-delay:0ms" alt="Crimson Rep" />' +
+          '<p class="hero-eyebrow animate-in" style="animation-delay:80ms">TRACK. RANK. PROGRESS.</p>' +
+          '<h1 class="hero-headline animate-in" style="animation-delay:160ms">FIND YOUR<br>TRUE MAX.</h1>' +
+          '<p class="hero-pitch animate-in" style="animation-delay:240ms">' +
             'Log a set, get an instant 1RM estimate, and see exactly how it stacks up — across 13 lifts, ranked against real strength standards.' +
           '</p>' +
-          '<div class="hero-cta animate-in" style="animation-delay:240ms">' +
+          '<div class="hero-cta animate-in" style="animation-delay:320ms">' +
             '<a href="#/signup" class="btn-primary btn-glow">Get Started</a>' +
             '<a href="#/login" class="btn-ghost">Log In</a>' +
           '</div>' +
@@ -33,7 +34,7 @@ App.Pages.Landing = (function () {
         '<div class="feature-grid">' +
           FEATURES.map(function (f, i) {
             return (
-              '<div class="feature-card animate-in" style="animation-delay:' + (320 + i * 90) + 'ms">' +
+              '<div class="feature-card animate-in" style="animation-delay:' + (400 + i * 90) + 'ms">' +
                 '<div class="feature-icon">' + ICONS[f.icon] + '</div>' +
                 '<h3 class="feature-title">' + f.title + '</h3>' +
                 '<p class="feature-body">' + f.body + '</p>' +
