@@ -674,6 +674,49 @@ a:focus-visible {
   margin: 0 0 20px;
 }
 
+/* Google's own "light button" branding -- fixed white/gray regardless of
+   the app's own dark/light mode, same as Google's own guidelines specify
+   (this button represents Google's identity, not the app's). */
+.btn-google {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 16px;
+  border: 1px solid #dadce0;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #3c4043;
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: box-shadow 0.15s ease;
+}
+
+.btn-google:hover {
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.2);
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--border);
+}
+
 /* ---------- Form fields (shared) ---------- */
 
 .field {

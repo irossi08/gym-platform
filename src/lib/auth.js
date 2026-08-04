@@ -1,7 +1,12 @@
 window.App = window.App || {};
 
 /**
- * Supabase Auth (email + password). Session state is cached in memory here
+ * Supabase Auth -- email + password, plus Google OAuth (signInWithGoogle).
+ * Both land the same way: the exact same onAuthStateChange listener below
+ * picks up a Google sign-in the moment the redirect back completes, same
+ * as it already does for email/password, so nothing downstream (router's
+ * mandatory-profile-setup gate, App.Storage.preloadAll, etc.) needs to
+ * know or care which provider was used. Session state is cached in memory here
  * (kept current via onAuthStateChange) so App.Auth.getCurrentUser() stays
  * fully synchronous -- router.js and every page call it that way many
  * times per navigation, exactly like the old localStorage-based version.
@@ -66,6 +71,24 @@ App.Auth = (function () {
     return { ok: true, user: currentUser };
   }
 
+  // Redirects the whole page to Google -- there's no session to return
+  // here, unlike signup/login above. The redirect back lands on the
+  // site root (no hash), so it flows through the exact same boot
+  // sequence (app.js) and router gate (mandatory profile setup if
+  // setup_complete isn't set yet) as any other login, provider-agnostic.
+  // Only fails BEFORE the redirect happens (misconfigured provider,
+  // network error) -- anything wrong on Google's side or after redirect
+  // surfaces as an auth state change (or lack of one), not this return
+  // value.
+  async function signInWithGoogle() {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin + '/' },
+    });
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
+  }
+
   function logout() {
     currentUser = null;
     supabase.auth.signOut();
@@ -75,5 +98,5 @@ App.Auth = (function () {
     return currentUser;
   }
 
-  return { signup, login, logout, getCurrentUser, ready };
+  return { signup, login, signInWithGoogle, logout, getCurrentUser, ready };
 })();
