@@ -95,12 +95,11 @@ App.Pages.Settings = (function () {
 
     addSlot.innerHTML =
       '<div class="community-inline-form">' +
-        '<div class="field-row">' +
-          '<div class="field"><input type="text" id="gym-loc-search-input" placeholder="Search for your gym’s address…" /></div>' +
-          '<button type="button" class="btn-ghost-sm" id="gym-loc-search-btn">Search</button>' +
+        '<div class="field gym-loc-search-field">' +
+          '<input type="text" id="gym-loc-search-input" placeholder="Search by gym name (e.g. “Gym Group Walthamstow”) or address…" autocomplete="off" />' +
+          '<div id="gym-loc-search-results" class="gym-loc-suggestions" hidden></div>' +
         '</div>' +
-        '<div id="gym-loc-search-results"></div>' +
-        '<p class="field-hint">Pick a search result to drop the pin there, or click anywhere on the map to place it yourself. Drag the pin to fine-tune it.</p>' +
+        '<p class="field-hint">Pick a result to drop the pin there, or click anywhere on the map to place it yourself. Drag the pin to fine-tune it.</p>' +
         '<div class="gym-loc-map-wrap">' +
           '<div id="gym-loc-map" class="gym-loc-map"></div>' +
         '</div>' +
@@ -113,9 +112,14 @@ App.Pages.Settings = (function () {
 
     let pendingLocation = null;
     let marker = null;
+    let sessionToken = App.Mapbox.newSessionToken();
+    let debounceTimer = null;
+    let latestQuery = '';
 
     const namePanel = addSlot.querySelector('#gym-loc-name-panel');
     const errorEl = addSlot.querySelector('#gym-loc-error');
+    const searchInput = addSlot.querySelector('#gym-loc-search-input');
+    const resultsEl = addSlot.querySelector('#gym-loc-search-results');
 
     const mapInstance = new window.mapboxgl.Map({
       container: addSlot.querySelector('#gym-loc-map'),
@@ -143,19 +147,32 @@ App.Pages.Settings = (function () {
       placeMarker(e.lngLat.lng, e.lngLat.lat);
     });
 
-    addSlot.querySelector('#gym-loc-search-btn').addEventListener('click', function () {
-      const query = addSlot.querySelector('#gym-loc-search-input').value.trim();
-      const resultsEl = addSlot.querySelector('#gym-loc-search-results');
-      errorEl.textContent = '';
-      if (!query) { errorEl.textContent = 'Enter an address or place name.'; return; }
+    // Live suggestions as-you-type (Search Box API), not a search button --
+    // debounced so it doesn't fire a request on every single keystroke.
+    // Matches by business/place name (e.g. a gym chain + area) as well as
+    // addresses, unlike the old Geocoding-API address search this replaced.
+    searchInput.addEventListener('input', function () {
+      const query = searchInput.value.trim();
+      clearTimeout(debounceTimer);
+      if (!query) { resultsEl.hidden = true; resultsEl.innerHTML = ''; return; }
+      debounceTimer = setTimeout(function () { runSuggest(query); }, 300);
+    });
+
+    function runSuggest(query) {
+      latestQuery = query;
+      resultsEl.hidden = false;
       resultsEl.innerHTML = '<p class="empty-hint">Searching…</p>';
-      App.Mapbox.geocode(query).then(function (results) {
-        resultsEl.innerHTML = results.length
+      App.Mapbox.suggest(query, sessionToken).then(function (suggestions) {
+        if (query !== latestQuery) return; // a newer keystroke's request already landed
+        resultsEl.innerHTML = suggestions.length
           ? '<ul class="community-list">' +
-              results.map(function (r, i) {
+              suggestions.map(function (s, i) {
                 return (
                   '<li class="community-list-item">' +
-                    '<button type="button" class="btn-ghost-sm gym-loc-result-btn" data-index="' + i + '">' + escapeHtml(r.name) + '</button>' +
+                    '<button type="button" class="btn-ghost-sm gym-loc-result-btn" data-index="' + i + '">' +
+                      '<span class="gym-loc-suggestion-name">' + escapeHtml(s.name) + '</span>' +
+                      (s.placeFormatted ? '<span class="gym-loc-suggestion-address">' + escapeHtml(s.placeFormatted) + '</span>' : '') +
+                    '</button>' +
                   '</li>'
                 );
               }).join('') +
@@ -163,17 +180,25 @@ App.Pages.Settings = (function () {
           : '<p class="empty-hint">No results found.</p>';
         resultsEl.querySelectorAll('.gym-loc-result-btn').forEach(function (btn) {
           btn.addEventListener('click', function () {
-            const r = results[parseInt(btn.dataset.index, 10)];
-            mapInstance.flyTo({ center: [r.lng, r.lat], zoom: 16 });
-            placeMarker(r.lng, r.lat);
-            addSlot.querySelector('#gym-loc-name-input').value = r.name;
+            const s = suggestions[parseInt(btn.dataset.index, 10)];
+            App.Mapbox.retrieve(s.mapboxId, sessionToken).then(function (feature) {
+              if (!feature) { errorEl.textContent = 'Could not load that location. Please try again.'; return; }
+              mapInstance.flyTo({ center: [feature.lng, feature.lat], zoom: 16 });
+              placeMarker(feature.lng, feature.lat);
+              addSlot.querySelector('#gym-loc-name-input').value = s.name;
+              searchInput.value = s.name;
+              resultsEl.hidden = true;
+              resultsEl.innerHTML = '';
+              sessionToken = App.Mapbox.newSessionToken(); // fresh token for the next search
+            });
           });
         });
       }).catch(function () {
+        if (query !== latestQuery) return;
         resultsEl.innerHTML = '';
         errorEl.textContent = 'Search failed. Please try again.';
       });
-    });
+    }
 
     addSlot.querySelector('#gym-loc-save-btn').addEventListener('click', function () {
       const name = addSlot.querySelector('#gym-loc-name-input').value.trim();

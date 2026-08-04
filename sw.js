@@ -17,7 +17,7 @@
 // file's own bytes -- if this string doesn't change, the browser has no
 // way to know the precached files are stale, and anyone with the PWA
 // already installed keeps getting the old cached version indefinitely.
-const CACHE_VERSION = 'crimson-rep-v2';
+const CACHE_VERSION = 'crimson-rep-v3';
 
 const PRECACHE_URLS = [
   './',
