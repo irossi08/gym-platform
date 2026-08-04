@@ -9,14 +9,16 @@
   --text-muted: #666666;
   --border: rgba(255, 255, 255, 0.09);
 
-  /* Baseline accent is pink/magenta -- --accent-rgb is the plain "r, g, b"
+  /* Baseline accent is electric blue -- --accent-rgb is the plain "r, g, b"
      triplet (no rgba() wrapper) so any rule needing a non-default alpha can
-     do rgba(var(--accent-rgb), X) and still react correctly when the
-     accent changes (Settings, or this default), instead of hardcoding a
-     color that only ever matched the old green. */
-  --accent: #ff2ea6;
-  --accent-rgb: 255, 46, 166;
-  --accent-ink: #ffffff;
+     do rgba(var(--accent-rgb), X) and still react correctly if this default
+     ever changes, instead of hardcoding a color that only ever matched
+     this one. One single accent everywhere, including Community, which
+     used to get its own fixed amber/orange override -- removed, see
+     App.Theme. */
+  --accent: #1e9bff;
+  --accent-rgb: 30, 155, 255;
+  --accent-ink: #0a0a0a;
   --accent-glow: rgba(var(--accent-rgb), 0.35);
 
   --status-critical: #ff4d4d;
@@ -31,10 +33,6 @@
   --chart-context-3: #b3b3b3;
   --gridline: #232323;
   --baseline: #3c3c3c;
-
-  --community-accent: #ff8a1e;
-  --community-accent-rgb: 255, 138, 30;
-  --community-accent-ink: #0a0a0a;
 
   /* Overridden at runtime by App.Theme (Settings page) -- these defaults
      match the numbers the rules below used to hardcode, so nothing shifts
@@ -3482,40 +3480,6 @@ body[data-view-style="card"] .ex-picker-option {
   font-size: 0.78rem;
   color: var(--text-secondary);
 }
-
-/* ---------- Community section identity (amber/orange) ----------
-   Every shared component (.card, .btn-primary, .section-title::after,
-   focus rings, etc.) already reads var(--accent)/--accent-rgb/--accent-ink/
-   --accent-glow rather than a hardcoded color -- redefining those four
-   variables on the section's own root class is enough to reskin the whole
-   area without touching a single shared rule. This intentionally overrides
-   the app's normal accent while inside this section, on purpose: the
-   point is a fixed, distinct identity ("a different space"),
-   not a themed variant of it -- "fixed" still means mode-aware though
-   (--community-accent/-ink/-rgb, set by App.Theme) since the same orange
-   that has good contrast on the dark-mode page background does not on the
-   light-mode one. Scoped to these 3 page roots only, so the navbar and any
-   document.body-level overlay (modals, tour, goal celebration) stay the
-   app's normal color. */
-.page-community,
-.page-community-detail,
-.page-challenge-detail {
-  --accent: var(--community-accent);
-  --accent-rgb: var(--community-accent-rgb);
-  --accent-ink: var(--community-accent-ink);
-  --accent-glow: rgba(var(--community-accent-rgb), 0.35);
-}
-
-/* A fade-in entry animation (communitySectionEnter, opacity 0 -> 1) used
-   to live here. Removed: it was started from inside a Promise .then()
-   callback (renderPage runs after an async fetch resolves), not directly
-   from a user gesture -- exactly the situation where iOS Safari can fail
-   to actually kick off a CSS animation's compositor work, leaving the
-   element stuck at its `from` state (invisible) until some unrelated
-   interaction elsewhere forces a global repaint and the browser catches
-   up. That's a real bug this caused (reported as "Community page renders
-   blank until I open the hamburger menu"), not a hypothetical one, so the
-   animation is gone rather than patched around.  */
 
 /* ---------- Home's Friends icon + dropdown ---------- */
 

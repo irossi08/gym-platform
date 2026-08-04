@@ -9,16 +9,28 @@ window.App = window.App || {};
  *
  * Color is NOT user-customizable -- Settings only offers a light/dark mode
  * toggle (App.Pages.Settings), and every color value here comes from one of
- * the two fixed PRESETS below. Light mode's accent is a deliberately
- * darker shade of the same pink, not the dark-mode value reused as-is --
- * the dark-mode pink (#ff2ea6) only clears ~3.4:1 contrast against a white
- * background, short of WCAG AA's 4.5:1 body-text threshold, since it's
- * used as plain text/icon color in a lot of places, not just button fills
- * with their own ink color. #d6007b (same hue/saturation, lower lightness)
- * clears ~5:1. The chart/gauge/status tokens are similarly given a light
- * counterpart rather than left dark-tuned, since e.g. --gridline
- * (#232323, barely lighter than dark mode's near-black bg) would render as
- * a heavy near-black line across a white page if left unchanged.
+ * the two fixed PRESETS below. There is exactly one accent (electric blue)
+ * used everywhere, including Community -- it used to get its own fixed
+ * amber/orange identity via a separate override, which has been removed
+ * entirely so every section reads the same --accent consistently.
+ *
+ * Light mode's accent is a deliberately darker shade of the same blue, not
+ * the dark-mode value reused as-is -- the dark-mode blue (#1e9bff) only
+ * clears ~2.9:1 contrast against a white background, short of WCAG AA's
+ * 4.5:1 body-text threshold, since it's used as plain text/icon color in a
+ * lot of places, not just button fills with their own ink color. #006cc2
+ * (same hue/saturation, lower lightness) clears ~5.3:1. accentInk is a
+ * fixed per-preset value rather than computed from luminance -- with only
+ * two known accent values now (not an arbitrary user-chosen one), each was
+ * checked by hand against both candidate inks and the actual WCAG contrast
+ * ratio picked the winner (dark mode: black ink at ~7.2:1 clearly beats
+ * white's ~2.9:1, despite blue's naive perceptual-luminance weighting
+ * suggesting white -- that naive heuristic is well known to misjudge
+ * blues, which is exactly why this is hand-picked instead). The
+ * chart/gauge/status tokens are similarly given a light counterpart rather
+ * than left dark-tuned, since e.g. --gridline (#232323, barely lighter
+ * than dark mode's near-black bg) would render as a heavy near-black line
+ * across a white page if left unchanged.
  */
 App.Theme = (function () {
   const PRESETS = {
@@ -26,33 +38,27 @@ App.Theme = (function () {
       bg: '#0a0a0a',
       surface: '#161616',
       text: '#f5f5f5',
-      accent: '#ff2ea6',
+      accent: '#1e9bff',
+      accentInk: '#0a0a0a',
       gridline: '#232323',
       baseline: '#3c3c3c',
       chartContext3: '#b3b3b3',
       gauge: ['#232323', '#2f2f2f', '#3c3c3c', '#4a4a4a', '#5c5c5c'],
       statusCritical: '#ff4d4d',
       statusWarning: '#ffb020',
-      communityAccent: '#ff8a1e',
-      communityAccentInk: '#0a0a0a',
     },
     light: {
       bg: '#ffffff',
       surface: '#f2f2f2',
       text: '#1a1a1a',
-      accent: '#d6007b',
+      accent: '#006cc2',
+      accentInk: '#ffffff',
       gridline: '#e4e4e4',
       baseline: '#c7c7c7',
       chartContext3: '#6b6b6b',
       gauge: ['#ececec', '#dcdcdc', '#c8c8c8', '#b2b2b2', '#9a9a9a'],
       statusCritical: '#d9363e',
       statusWarning: '#b8790a',
-      // Same "distinct space" fixed orange as dark mode's, darkened for
-      // the same reason the main accent is: the dark-mode value
-      // (#ff8a1e) only clears ~2.3:1 against a white page, since Community
-      // uses it as plain text/icon color, not just inside button fills.
-      communityAccent: '#b85800',
-      communityAccentInk: '#ffffff',
     },
   };
 
@@ -98,13 +104,6 @@ App.Theme = (function () {
     return 'rgb(' + r + ', ' + g + ', ' + bl + ')';
   }
 
-  // Perceived brightness (0-255) -- decides whether black or white text
-  // reads better on top of the accent color.
-  function luminance(hex) {
-    const c = hexToRgb(hex);
-    return 0.299 * c.r + 0.587 * c.g + 0.114 * c.b;
-  }
-
   function applyTheme(theme) {
     const t = Object.assign({}, DEFAULTS, theme || {});
     const mode = t.mode === 'light' ? 'light' : 'dark';
@@ -131,7 +130,7 @@ App.Theme = (function () {
 
     root.setProperty('--accent', p.accent);
     root.setProperty('--accent-rgb', rgbString(p.accent));
-    root.setProperty('--accent-ink', luminance(p.accent) > 150 ? '#0a0a0a' : '#ffffff');
+    root.setProperty('--accent-ink', p.accentInk);
     root.setProperty('--accent-glow', 'rgba(' + rgbString(p.accent) + ', 0.35)');
 
     root.setProperty('--gridline', p.gridline);
@@ -144,9 +143,6 @@ App.Theme = (function () {
     root.setProperty('--gauge-5', p.gauge[4]);
     root.setProperty('--status-critical', p.statusCritical);
     root.setProperty('--status-warning', p.statusWarning);
-    root.setProperty('--community-accent', p.communityAccent);
-    root.setProperty('--community-accent-rgb', rgbString(p.communityAccent));
-    root.setProperty('--community-accent-ink', p.communityAccentInk);
 
     const density = DENSITY_VALUES[t.density] || DENSITY_VALUES.spacious;
     root.setProperty('--density-card-padding', density.cardPadding);

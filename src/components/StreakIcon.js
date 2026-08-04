@@ -5,9 +5,9 @@ App.Components = App.Components || {};
  * An illustrated seedling that grows through six stages as the streak count
  * rises -- bare soil with a seed, then a breaking sprout, a young pair of
  * leaves, a taller several-leaved plant, a budding plant, and finally a
- * flowering/mature one. Soil tones plus the app's existing accent green
- * cover the whole thing naturally, no themed exception needed the way the
- * fire icon's orange/yellow was.
+ * flowering/mature one. Soil tones plus the app's own accent color (see
+ * .seedling-leaf) cover the whole thing naturally, no themed exception
+ * needed the way the fire icon's orange/yellow was.
  */
 App.Components.StreakIcon = (function () {
   function stageForCount(n) {
