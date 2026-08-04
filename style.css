@@ -2083,12 +2083,14 @@ a:focus-visible {
   width: 100%;
 }
 
-/* Today/Progress tabs -- plain show/hide on two panels rendered once, not
-   a route change, so switching tabs is instant and never re-fetches
-   anything. Same segmented look as .auth-tabs but its own class rather
-   than reusing that one directly, since Auth's tabs are route links and
-   these are in-page toggle buttons -- no shared behavior to couple to. */
-.home-tabs {
+/* Shared in-page tab bar (App.Components.Tabs) -- Home's Today/Progress,
+   CommunityDetail's Overview/Challenges/Activity. Plain show/hide on
+   panels rendered once, not a route change, so switching tabs is instant
+   and never re-fetches anything. Same segmented look as .auth-tabs but
+   its own class rather than reusing that one directly, since Auth's tabs
+   are route links and these are in-page toggle buttons -- no shared
+   behavior to couple to. */
+.segmented-tabs {
   display: flex;
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -2096,7 +2098,7 @@ a:focus-visible {
   margin-bottom: var(--density-section-gap);
 }
 
-.home-tab-btn {
+.segmented-tab-btn {
   flex: 1;
   text-align: center;
   padding: 10px;
@@ -2109,12 +2111,12 @@ a:focus-visible {
   cursor: pointer;
 }
 
-.home-tab-btn--active {
+.segmented-tab-btn--active {
   background: var(--accent);
   color: var(--accent-ink);
 }
 
-.home-tab-btn:not(.home-tab-btn--active):hover {
+.segmented-tab-btn:not(.segmented-tab-btn--active):hover {
   color: var(--accent);
 }
 

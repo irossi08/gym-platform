@@ -2,7 +2,9 @@ window.App = window.App || {};
 App.Pages = App.Pages || {};
 
 /**
- * A single community: invite link, member list, and its challenges.
+ * A single community, split into three tabs (App.Components.Tabs):
+ * Overview (join banner, invite link, member list), Challenges (the list
+ * plus the create-challenge flow), and Activity (the community feed).
  * Non-members can still land here (community metadata is world-readable,
  * see schema.sql) but see a join prompt instead of member-only content --
  * members/challenges queries simply come back empty for a non-member
@@ -128,32 +130,43 @@ App.Pages.CommunityDetail = (function () {
           '</div>' +
         '</div>' +
         '<div id="cd-quick-links"></div>' +
-        notMemberBannerHtml +
-        (isMember
-          ? '<div class="card">' +
-              '<h2 class="section-title">Invite link</h2>' +
-              '<div class="community-id-row">' +
-                '<span class="community-id-value community-invite-link">' + escapeHtml(App.Communities.inviteLink(community.inviteCode)) + '</span>' +
-                '<button type="button" class="btn-ghost-sm" id="cd-invite-copy">Copy</button>' +
-              '</div>' +
-            '</div>'
-          : '') +
-        '<div class="card">' +
-          '<h2 class="section-title">Members (' + members.length + ')</h2>' +
-          memberListHtml +
-          (isMember ? '<button type="button" class="btn-ghost-sm" id="cd-leave-btn">Leave community</button>' : '') +
+        '<div class="segmented-tabs" role="tablist">' +
+          '<button type="button" class="segmented-tab-btn segmented-tab-btn--active" data-tab="overview" role="tab" aria-selected="true">Overview</button>' +
+          '<button type="button" class="segmented-tab-btn" data-tab="challenges" role="tab" aria-selected="false">Challenges</button>' +
+          '<button type="button" class="segmented-tab-btn" data-tab="activity" role="tab" aria-selected="false">Activity</button>' +
         '</div>' +
-        '<div class="card">' +
-          '<div class="goal-card-head">' +
-            '<h2 class="section-title">Challenges</h2>' +
-            (isMember ? '<button type="button" class="btn-ghost-sm" id="cd-new-challenge-btn">New challenge</button>' : '') +
+        '<div data-tab-panel="overview">' +
+          notMemberBannerHtml +
+          (isMember
+            ? '<div class="card">' +
+                '<h2 class="section-title">Invite link</h2>' +
+                '<div class="community-id-row">' +
+                  '<span class="community-id-value community-invite-link">' + escapeHtml(App.Communities.inviteLink(community.inviteCode)) + '</span>' +
+                  '<button type="button" class="btn-ghost-sm" id="cd-invite-copy">Copy</button>' +
+                '</div>' +
+              '</div>'
+            : '') +
+          '<div class="card">' +
+            '<h2 class="section-title">Members (' + members.length + ')</h2>' +
+            memberListHtml +
+            (isMember ? '<button type="button" class="btn-ghost-sm" id="cd-leave-btn">Leave community</button>' : '') +
           '</div>' +
-          challengesHtml +
-          '<div id="cd-challenge-form-slot"></div>' +
         '</div>' +
-        '<div class="card">' +
-          '<h2 class="section-title">Activity</h2>' +
-          activityHtml +
+        '<div data-tab-panel="challenges" hidden>' +
+          '<div class="card">' +
+            '<div class="goal-card-head">' +
+              '<h2 class="section-title">Challenges</h2>' +
+              (isMember ? '<button type="button" class="btn-ghost-sm" id="cd-new-challenge-btn">New challenge</button>' : '') +
+            '</div>' +
+            challengesHtml +
+            '<div id="cd-challenge-form-slot"></div>' +
+          '</div>' +
+        '</div>' +
+        '<div data-tab-panel="activity" hidden>' +
+          '<div class="card">' +
+            '<h2 class="section-title">Activity</h2>' +
+            activityHtml +
+          '</div>' +
         '</div>' +
       '</section>';
 
@@ -170,6 +183,7 @@ App.Pages.CommunityDetail = (function () {
     );
 
     App.Components.QuickLinks.render(container.querySelector('#cd-quick-links'), user, 'community');
+    App.Components.Tabs.wire(container);
 
     const joinBtn = container.querySelector('#cd-join-btn');
     if (joinBtn) {

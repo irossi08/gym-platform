@@ -487,36 +487,14 @@ App.Pages.Home = (function () {
       '<p class="monthly-recap-highlight">' + highlightHtml + '</p>';
   }
 
-  // Today/Progress tabs: Today (default) is the day-to-day action tab --
-  // today's workout and the current goal. Progress is the "how am I
-  // doing over time" tab -- the 1RM trend graph and the monthly recap --
-  // hidden until tapped so Home's default landing view stays focused on
-  // what to do right now rather than a wall of cards. Plain show/hide on
-  // two already-rendered panels, not a route change, so switching tabs
-  // never re-fetches or re-renders their contents.
-  function wireTabs(container) {
-    const todayBtn = container.querySelector('[data-tab="today"]');
-    const progressBtn = container.querySelector('[data-tab="progress"]');
-    const todayPanel = container.querySelector('#home-tab-today');
-    const progressPanel = container.querySelector('#home-tab-progress');
-
-    function activate(tab) {
-      const isToday = tab === 'today';
-      todayPanel.hidden = !isToday;
-      progressPanel.hidden = isToday;
-      todayBtn.classList.toggle('home-tab-btn--active', isToday);
-      progressBtn.classList.toggle('home-tab-btn--active', !isToday);
-      todayBtn.setAttribute('aria-selected', String(isToday));
-      progressBtn.setAttribute('aria-selected', String(!isToday));
-    }
-
-    todayBtn.addEventListener('click', function () { activate('today'); });
-    progressBtn.addEventListener('click', function () { activate('progress'); });
-  }
-
   function render(container, opts) {
     const user = opts.user;
 
+    // Today (default) is the day-to-day action tab -- today's workout and
+    // the current goal. Progress is the "how am I doing over time" tab --
+    // the 1RM trend graph and the monthly recap -- hidden until tapped so
+    // Home's default landing view stays focused on what to do right now
+    // rather than a wall of cards. See App.Components.Tabs for the wiring.
     container.innerHTML =
       '<section class="page page-home">' +
         '<div class="page-header">' +
@@ -524,15 +502,15 @@ App.Pages.Home = (function () {
           '<button type="button" class="home-friends-btn" id="home-friends-btn" title="Friends" aria-label="Friends">' + friendsIconSvg() + '</button>' +
         '</div>' +
         '<div id="home-quick-links"></div>' +
-        '<div class="home-tabs" role="tablist">' +
-          '<button type="button" class="home-tab-btn home-tab-btn--active" data-tab="today" role="tab" aria-selected="true">Today</button>' +
-          '<button type="button" class="home-tab-btn" data-tab="progress" role="tab" aria-selected="false">Progress</button>' +
+        '<div class="segmented-tabs" role="tablist">' +
+          '<button type="button" class="segmented-tab-btn segmented-tab-btn--active" data-tab="today" role="tab" aria-selected="true">Today</button>' +
+          '<button type="button" class="segmented-tab-btn" data-tab="progress" role="tab" aria-selected="false">Progress</button>' +
         '</div>' +
-        '<div id="home-tab-today" class="home-tab-panel">' +
+        '<div data-tab-panel="today">' +
           '<div class="card card--primary" id="home-today-container"></div>' +
           '<div class="card" id="home-goal-container"></div>' +
         '</div>' +
-        '<div id="home-tab-progress" class="home-tab-panel" hidden>' +
+        '<div data-tab-panel="progress" hidden>' +
           '<div class="card" id="home-trend-container"></div>' +
           '<div class="card" id="home-recap-container"></div>' +
         '</div>' +
@@ -543,7 +521,7 @@ App.Pages.Home = (function () {
       App.Components.FriendsPanel.open(user);
     });
     App.Components.FriendsBadge.refresh(user);
-    wireTabs(container);
+    App.Components.Tabs.wire(container);
 
     const streakBadgeEl = container.querySelector('#home-streak-badge');
     const goalEl = container.querySelector('#home-goal-container');
