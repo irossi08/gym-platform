@@ -10,9 +10,7 @@ window.App = window.App || {};
  * it can't be reused elsewhere even though it's visible in this file.
  */
 App.Mapbox = (function () {
-  // TODO: paste your Mapbox access token here -- see the setup steps
-  // provided alongside this feature.
-  const ACCESS_TOKEN = 'YOUR_MAPBOX_ACCESS_TOKEN';
+  const ACCESS_TOKEN = 'pk.eyJ1IjoiaXJvc3NpMDgiLCJhIjoiY21zZHhld3dhMDJndjJ6c2FraWxldXh1NyJ9.cqNo6pYh4B5d8jldHfpIaA';
 
   if (window.mapboxgl) window.mapboxgl.accessToken = ACCESS_TOKEN;
 
