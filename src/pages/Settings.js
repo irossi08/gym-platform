@@ -2,28 +2,10 @@ window.App = window.App || {};
 App.Pages = App.Pages || {};
 
 App.Pages.Settings = (function () {
-  // Background, surface/card, and text are fixed (black/near-black/white)
-  // -- only the accent is customizable here.
-  const COLOR_FIELDS = [
-    { key: 'accent', id: 'set-accent', label: 'Accent' },
-  ];
-
   function escapeHtml(str) {
     const div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
-  }
-
-  function colorFieldHtml(field, value) {
-    return (
-      '<div class="settings-color-field">' +
-        '<label for="' + field.id + '">' + field.label + '</label>' +
-        '<div class="settings-color-input-wrap">' +
-          '<input type="color" id="' + field.id + '" data-key="' + field.key + '" value="' + value + '" />' +
-          '<span class="settings-color-hex">' + value + '</span>' +
-        '</div>' +
-      '</div>'
-    );
   }
 
   function toggleGroupHtml(group, options, current) {
@@ -226,8 +208,14 @@ App.Pages.Settings = (function () {
           '</div>' +
           '<div id="settings-quick-links"></div>' +
           '<div class="card" id="settings-colors-card">' +
-            '<h2 class="section-title">Colors</h2>' +
-            COLOR_FIELDS.map(function (f) { return colorFieldHtml(f, theme[f.key]); }).join('') +
+            '<h2 class="section-title">Appearance</h2>' +
+            '<div class="settings-layout-field">' +
+              '<p class="settings-layout-label">Mode</p>' +
+              toggleGroupHtml('mode', [
+                { value: 'dark', label: 'Dark' },
+                { value: 'light', label: 'Light' },
+              ], theme.mode) +
+            '</div>' +
           '</div>' +
           '<div class="card" id="settings-layout-card">' +
             '<h2 class="section-title">Layout</h2>' +
@@ -264,24 +252,12 @@ App.Pages.Settings = (function () {
             '<button type="button" class="btn-ghost-sm" id="gym-location-add-btn">Add a gym location</button>' +
             '<div id="gym-location-add-slot"></div>' +
           '</div>' +
-          '<button type="button" class="btn-ghost settings-reset-btn" id="settings-reset">Reset to default theme</button>' +
+          '<button type="button" class="btn-ghost settings-reset-btn" id="settings-reset">Reset to default appearance</button>' +
         '</section>';
 
       App.Components.StreakBadge.render(container.querySelector('#settings-streak-badge'), user);
       App.Components.QuickLinks.render(container.querySelector('#settings-quick-links'), user, 'settings');
       wireGymLocations(container, user);
-
-      // Live preview: applied on every 'input' event (fires continuously
-      // while dragging inside the native color picker), never via a full
-      // rebuild of this page -- only the hex readout text is patched
-      // directly, so nothing here can steal focus mid-pick.
-      container.querySelectorAll('.settings-color-input-wrap input[type="color"]').forEach(function (input) {
-        input.addEventListener('input', function () {
-          theme[input.dataset.key] = input.value;
-          input.nextElementSibling.textContent = input.value;
-          persist();
-        });
-      });
 
       container.querySelectorAll('.settings-toggle').forEach(function (group) {
         const key = group.dataset.group;

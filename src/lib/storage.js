@@ -488,10 +488,7 @@ App.Storage = (function () {
     cacheFor(userId).theme = theme;
     db.from('themes').upsert({
       user_id: userId,
-      bg: theme.bg,
-      surface: theme.surface,
-      accent: theme.accent,
-      text_color: theme.text,
+      mode: theme.mode,
       density: theme.density,
       view_style: theme.viewStyle,
       font_size: theme.fontSize,
@@ -625,8 +622,7 @@ App.Storage = (function () {
         achievementTourSeen: !!(settingsRow && settingsRow.achievement_tour_seen),
 
         theme: themeRow ? compact({
-          bg: themeRow.bg, surface: themeRow.surface, accent: themeRow.accent, text: themeRow.text_color,
-          density: themeRow.density, viewStyle: themeRow.view_style, fontSize: themeRow.font_size,
+          mode: themeRow.mode, density: themeRow.density, viewStyle: themeRow.view_style, fontSize: themeRow.font_size,
         }) : {},
 
         addedExercises: (addedExercisesRes.data || []).map(function (row) { return row.exercise_key; }),

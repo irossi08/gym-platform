@@ -120,7 +120,7 @@ App.TourSteps = [
   {
     route: 'settings',
     target: '#settings-colors-card',
-    message: 'Pick your own accent color here — it applies everywhere the app uses its highlight color, live as you adjust it.',
+    message: 'Switch between dark and light mode here — it applies everywhere in the app, right away.',
   },
   {
     route: 'settings',

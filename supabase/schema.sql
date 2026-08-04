@@ -270,6 +270,14 @@ drop policy if exists "themes_owner" on public.themes;
 create policy "themes_owner" on public.themes
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+-- Replaces the old free-form accent-color picker with a plain light/dark
+-- mode toggle (see App.Theme) -- bg/surface/accent/text_color above are no
+-- longer written or read by the app. Left in place rather than dropped:
+-- existing rows keep whatever values they already have, but nothing
+-- reads them anymore -- App.Theme resolves the actual colors for
+-- whichever mode is picked entirely in code.
+alter table public.themes add column if not exists mode text not null default 'dark' check (mode in ('dark', 'light'));
+
 -- ---------- user_added_exercises (tracks which curated-pool exercises this
 -- user has added to their own picker -- the pool's own data (names,
 -- muscles, standards, descriptions) lives in code, not here) ----------

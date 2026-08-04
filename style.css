@@ -1,6 +1,7 @@
 ﻿:root {
   color-scheme: dark;
   --bg: #0a0a0a;
+  --bg-rgb: 10, 10, 10;
   --surface: #161616;
   --surface-2: #1f1f1f;
   --text-primary: #f5f5f5;
@@ -30,6 +31,10 @@
   --chart-context-3: #b3b3b3;
   --gridline: #232323;
   --baseline: #3c3c3c;
+
+  --community-accent: #ff8a1e;
+  --community-accent-rgb: 255, 138, 30;
+  --community-accent-ink: #0a0a0a;
 
   /* Overridden at runtime by App.Theme (Settings page) -- these defaults
      match the numbers the rules below used to hardcode, so nothing shifts
@@ -171,7 +176,7 @@ a:focus-visible {
   left: 0;
   right: 0;
   top: 0;
-  background: rgba(10, 10, 10, 0.9);
+  background: rgba(var(--bg-rgb), 0.9);
   backdrop-filter: blur(6px);
   z-index: 500;
   border-bottom: 1px solid var(--border);
@@ -1221,7 +1226,7 @@ a:focus-visible {
   font-size: 0.6rem;
   line-height: 1.2;
   text-align: center;
-  color: #f5f5f5;
+  color: var(--text-primary);
   opacity: 0.9;
   white-space: nowrap;
 }
@@ -2794,49 +2799,6 @@ body[data-view-style="card"] .ex-picker-option {
   color: var(--text-primary);
 }
 
-.settings-color-field {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--gridline);
-}
-
-.settings-color-field:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.settings-color-field label {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-}
-
-.settings-color-input-wrap {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.settings-color-input-wrap input[type="color"] {
-  width: 42px;
-  height: 34px;
-  padding: 2px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface-2);
-  cursor: pointer;
-}
-
-.settings-color-hex {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  min-width: 64px;
-  text-transform: uppercase;
-}
-
 .settings-layout-field {
   padding: 12px 0;
   border-bottom: 1px solid var(--gridline);
@@ -3527,18 +3489,21 @@ body[data-view-style="card"] .ex-picker-option {
    --accent-glow rather than a hardcoded color -- redefining those four
    variables on the section's own root class is enough to reskin the whole
    area without touching a single shared rule. This intentionally overrides
-   whatever accent the user picked in Settings while inside this section,
-   on purpose: the point is a fixed, distinct identity ("a different
-   space"), not a themed variant of it. Scoped to these 3 page roots only,
-   so the navbar and any document.body-level overlay (modals, tour, goal
-   celebration) stay the app's normal color. */
+   the app's normal accent while inside this section, on purpose: the
+   point is a fixed, distinct identity ("a different space"),
+   not a themed variant of it -- "fixed" still means mode-aware though
+   (--community-accent/-ink/-rgb, set by App.Theme) since the same orange
+   that has good contrast on the dark-mode page background does not on the
+   light-mode one. Scoped to these 3 page roots only, so the navbar and any
+   document.body-level overlay (modals, tour, goal celebration) stay the
+   app's normal color. */
 .page-community,
 .page-community-detail,
 .page-challenge-detail {
-  --accent: #ff8a1e;
-  --accent-rgb: 255, 138, 30;
-  --accent-ink: #0a0a0a;
-  --accent-glow: rgba(255, 138, 30, 0.35);
+  --accent: var(--community-accent);
+  --accent-rgb: var(--community-accent-rgb);
+  --accent-ink: var(--community-accent-ink);
+  --accent-glow: rgba(var(--community-accent-rgb), 0.35);
 }
 
 /* A fade-in entry animation (communitySectionEnter, opacity 0 -> 1) used
