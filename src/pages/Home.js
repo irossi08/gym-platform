@@ -509,6 +509,9 @@ App.Pages.Home = (function () {
         '<div data-tab-panel="today">' +
           '<div class="card card--primary" id="home-today-container"></div>' +
           '<div class="card" id="home-goal-container"></div>' +
+          '<button type="button" class="btn-ghost home-tour-btn" id="home-tour-btn">' +
+            (App.Storage.getTourSeen(user.id) ? 'Retake the tour' : 'Take the tour') +
+          '</button>' +
         '</div>' +
         '<div data-tab-panel="progress" hidden>' +
           '<div class="card" id="home-trend-container"></div>' +
@@ -522,6 +525,11 @@ App.Pages.Home = (function () {
     });
     App.Components.FriendsBadge.refresh(user);
     App.Components.Tabs.wire(container);
+    container.querySelector('#home-tour-btn').addEventListener('click', function () {
+      App.Components.TourOverlay.start(user, App.TourSteps, {
+        onFinish: function (u) { App.Storage.setTourSeen(u.id); },
+      });
+    });
 
     const streakBadgeEl = container.querySelector('#home-streak-badge');
     const goalEl = container.querySelector('#home-goal-container');

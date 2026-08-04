@@ -51,10 +51,10 @@ App.Router = (function () {
     // Mandatory first-time profile setup: gated on the explicit
     // setup_complete flag (set true only by ProfileSetup's onSave), not
     // inferred from any other field being present. Blocks every other
-    // protected route (including Home) -- and therefore blocks the
-    // onboarding tour too, since that only ever triggers on the home route
-    // below. Once complete, the setup route itself redirects home instead
-    // of being revisitable.
+    // protected route (including Home) -- and therefore the "Take the
+    // tour" button too, since that only lives on Home (see Home.js). Once
+    // complete, the setup route itself redirects home instead of being
+    // revisitable.
     if (user) {
       const profile = App.Storage.getProfile(user.id);
       const profileComplete = !!(profile && profile.setupComplete);
@@ -117,16 +117,6 @@ App.Router = (function () {
     }
 
     window.scrollTo(0, 0);
-
-    // The tour always starts on Home (the default post-login page), and
-    // only auto-plays the first time this user has ever reached it --
-    // TourOverlay itself drives navigation onward from here, so this is
-    // the only spot that needs to kick it off.
-    if (route === 'home' && user && !App.Storage.getTourSeen(user.id) && !App.Components.TourOverlay.isActive()) {
-      App.Components.TourOverlay.start(user, App.TourSteps, {
-        onFinish: function (u) { App.Storage.setTourSeen(u.id); },
-      });
-    }
   }
 
   // Re-renders just the navbar against whatever route/user it last rendered

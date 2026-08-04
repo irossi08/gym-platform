@@ -12,8 +12,8 @@ window.App = window.App || {};
  *
  * The Split Builder day-card/missed-workout steps and the Achievements step
  * all target elements that only exist once there's something to show (a
- * generated split, an unlocked Achievements page) -- a brand-new account
- * (the only time this tour auto-plays) may not have either yet.
+ * generated split, an unlocked Achievements page) -- whoever taps "Take
+ * the tour" (Home.js) may not have either yet, e.g. a brand-new account.
  * TourOverlay skips a step automatically if its target isn't found rather
  * than faking data to force it to appear, so those steps quietly no-op
  * when the feature isn't unlocked yet.
