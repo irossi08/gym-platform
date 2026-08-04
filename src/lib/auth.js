@@ -21,6 +21,42 @@ App.Auth = (function () {
   const supabase = App.Supabase;
   let currentUser = null;
 
+  // If the OAuth redirect back came from an error (most likely: the
+  // production URL isn't in Supabase's Authentication -> URL Configuration
+  // -> Redirect URLs allow-list yet, or the provider itself is
+  // misconfigured), Supabase still redirects to our own redirectTo, just
+  // with ?error=...&error_description=... appended instead of a session --
+  // which otherwise looks EXACTLY like "silently back at the login page"
+  // with nothing in the console to explain why. Captured once at module
+  // load (before anything strips the query string) so Auth.js can surface
+  // it to the user instead of it being silently dropped.
+  let oauthError = null;
+  (function captureOAuthErrorFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const err = params.get('error_description') || params.get('error');
+    if (err) {
+      oauthError = err.replace(/\+/g, ' ');
+      console.error('[Auth] OAuth redirect returned an error:', oauthError);
+      const url = new URL(window.location.href);
+      url.searchParams.delete('error');
+      url.searchParams.delete('error_description');
+      url.searchParams.delete('error_code');
+      window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+    }
+  })();
+
+  function consumeOAuthError() {
+    const err = oauthError;
+    oauthError = null;
+    return err;
+  }
+
+  // Non-consuming peek so router.js can decide where to route without
+  // stealing the message Auth.js still needs to actually display it.
+  function hasOAuthError() {
+    return !!oauthError;
+  }
+
   function mapUser(sbUser) {
     if (!sbUser) return null;
     const meta = sbUser.user_metadata || {};
@@ -31,8 +67,33 @@ App.Auth = (function () {
     };
   }
 
+  // Beyond just caching currentUser, this is also the safety net for the
+  // OAuth redirect-back case: if the session lands here AFTER app.js's own
+  // boot sequence already rendered the login/landing page with no user
+  // (ready()'s getSession() resolved a beat too early), nothing else would
+  // ever re-check it -- the user would be stuck looking logged-out despite
+  // now actually having a session. So on any transition into a signed-in
+  // state, warm App.Storage's cache the same way the manual login/signup
+  // form already does, then ask the router to re-evaluate the current
+  // route (which will redirect off login/landing once it sees a user).
+  // Harmless if this races with that manual flow's own preloadAll call for
+  // the ordinary email/password path -- preloadAll is just a batch of
+  // reads into an in-memory cache, not a subscription, so calling it twice
+  // just means one redundant round-trip, not corrupted state.
   supabase.auth.onAuthStateChange(function (_event, session) {
-    currentUser = mapUser(session ? session.user : null);
+    const nextUser = mapUser(session ? session.user : null);
+    const justSignedIn = !!nextUser && !currentUser;
+    currentUser = nextUser;
+
+    if (justSignedIn) {
+      App.Storage.preloadAll(nextUser.id).then(function () {
+        if (App.Components.FriendRequestToast) App.Components.FriendRequestToast.init(nextUser);
+        if (App.Components.GymAutoComplete) App.Components.GymAutoComplete.init(nextUser);
+        if (App.Router && App.Router.notifyAuthChanged) App.Router.notifyAuthChanged();
+      });
+    } else if (App.Router && App.Router.notifyAuthChanged) {
+      App.Router.notifyAuthChanged();
+    }
   });
 
   async function ready() {
@@ -98,5 +159,5 @@ App.Auth = (function () {
     return currentUser;
   }
 
-  return { signup, login, signInWithGoogle, logout, getCurrentUser, ready };
+  return { signup, login, signInWithGoogle, logout, getCurrentUser, ready, consumeOAuthError, hasOAuthError };
 })();

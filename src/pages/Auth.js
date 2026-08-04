@@ -59,6 +59,14 @@ App.Pages.Auth = (function () {
 
     const googleBtn = container.querySelector('#a-google-btn');
     const googleError = container.querySelector('#a-google-error');
+
+    // Surfaces a failed OAuth redirect (see router.js's route === '' &&
+    // hasOAuthError() check, and auth.js's captureOAuthErrorFromUrl) --
+    // otherwise the only trace of what went wrong is a console.error the
+    // user would have no reason to go looking for.
+    const pendingOAuthError = App.Auth.consumeOAuthError();
+    if (pendingOAuthError) googleError.textContent = pendingOAuthError;
+
     googleBtn.addEventListener('click', function () {
       googleError.textContent = '';
       googleBtn.disabled = true;

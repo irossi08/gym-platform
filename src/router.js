@@ -4,6 +4,7 @@ App.Router = (function () {
   const PROTECTED = ['home', 'one-rep-max', 'history', 'split-builder', 'achievements', 'settings', 'profile-setup', 'profile', 'community'];
   let navEl, rootEl;
   let lastUser = null, lastRoute = null;
+  let initialized = false;
 
   function parseRoute() {
     return window.location.hash.replace(/^#\/?/, '') || '';
@@ -39,6 +40,16 @@ App.Router = (function () {
     }
     if (route === '' && user) {
       navigate('home');
+      return;
+    }
+    // A failed OAuth redirect (e.g. redirect URL not yet allow-listed in
+    // Supabase, or a provider-side error) lands back here with no session
+    // and no hash -- without this it would silently fall through to the
+    // Landing page below with the error only ever visible in the console.
+    // Routing to login instead gives Auth.js's own consumeOAuthError() a
+    // chance to actually display it.
+    if (route === '' && !user && App.Auth.hasOAuthError()) {
+      navigate('login');
       return;
     }
 
@@ -132,8 +143,23 @@ App.Router = (function () {
     navEl = navContainer;
     rootEl = rootContainer;
     window.addEventListener('hashchange', handleRouteChange);
+    initialized = true;
     handleRouteChange();
   }
 
-  return { init, navigate, refreshNavbar, getRoute: parseRoute };
+  // Lets App.Auth push a re-route whenever the session actually changes
+  // (signed in, signed out, token refreshed away) rather than only on the
+  // initial boot check or a hash click. This matters most for OAuth: the
+  // redirect back from Google can land the session a moment AFTER the
+  // page's first route render already happened with no user, and nothing
+  // would otherwise re-check it -- the user would be stuck looking at
+  // the login/landing page despite now actually being authenticated.
+  // No-ops before init() has run (app.js's own boot sequence -- await
+  // Auth.ready() then Router.init() -- already handles that first paint).
+  function notifyAuthChanged() {
+    if (!initialized) return;
+    handleRouteChange();
+  }
+
+  return { init, navigate, refreshNavbar, notifyAuthChanged, getRoute: parseRoute };
 })();
