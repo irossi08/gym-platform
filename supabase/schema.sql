@@ -114,6 +114,32 @@ create policy "entries_owner" on public.entries
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create index if not exists entries_user_id_idx on public.entries (user_id);
 
+-- Logging a set now computes a TARGET to attempt, not an automatic PB --
+-- attempt_status tracks whether the user confirmed they actually hit it.
+-- null = logged, not yet confirmed either way (a fresh pending attempt);
+-- 'succeeded' = confirmed hit, counts toward the confirmed PB used
+-- everywhere (standards gauge, exercise goals, the community 'pr'
+-- activity, strength challenge progress); 'failed' = confirmed miss,
+-- stays in History but never counts as a PB.
+--
+-- The backfill only ever runs the FIRST time this migration is applied,
+-- guarded by the column-existence check below: every entry logged
+-- before this feature shipped is grandfathered in as 'succeeded' so
+-- nobody's existing PB history is retroactively stripped. On every
+-- later re-run of this whole file the column already exists, so this
+-- entire block is skipped -- it never re-touches a future pending
+-- (null) entry just because the file gets run again.
+do $$
+begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'entries' and column_name = 'attempt_status'
+  ) then
+    alter table public.entries add column attempt_status text check (attempt_status in ('succeeded', 'failed'));
+    update public.entries set attempt_status = 'succeeded';
+  end if;
+end $$;
+
 -- ---------- settings (display unit + last-used form defaults + tour flags) ----------
 create table if not exists public.settings (
   user_id uuid primary key references auth.users(id) on delete cascade,

@@ -109,15 +109,22 @@ App.Pages.Home = (function () {
   }
 
   function renderGoalProgress(container, user, goal) {
-    let points, startValue;
+    let points, startValue, latestValue;
     if (goal.type === 'bodyweight') {
       points = bodyweightGoalPoints(user, goal.unit);
       startValue = goal.startWeight;
+      latestValue = points.length ? points[points.length - 1].value : startValue;
     } else {
+      // The chart still plots every logged attempt (including failed
+      // ones -- that's real history, worth seeing), but "reached"/percent
+      // has to come from the CONFIRMED PB specifically, same as
+      // App.Goals.checkAchievement, or this card could show "100% there"
+      // for a goal that hasn't actually been marked achieved.
       points = exerciseGoalPoints(user, goal.lift, goal.unit);
       startValue = points.length ? points[0].value : goal.targetWeight;
+      const pbEntry = App.Storage.getConfirmedPbEntry(user.id, goal.lift);
+      latestValue = pbEntry ? App.Units.convert(pbEntry.estimated1RM, pbEntry.unit, goal.unit) : startValue;
     }
-    const latestValue = points.length ? points[points.length - 1].value : startValue;
     const progress = computeGoalProgress(startValue, latestValue, goal.targetWeight);
 
     const title = goal.type === 'bodyweight'

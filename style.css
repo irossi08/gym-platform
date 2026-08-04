@@ -1210,6 +1210,65 @@ a:focus-visible {
   color: var(--text-secondary);
 }
 
+.result-sublabel {
+  margin: -8px 0 14px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* ---------- Attempt confirmation (ResultPanel) ---------- */
+
+.attempt-section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.attempt-confirm-question {
+  margin: 0 0 10px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.attempt-confirm-actions {
+  display: flex;
+  gap: 10px;
+}
+
+/* .btn-primary's own width: 100% fights this flex row otherwise -- same
+   fix already applied to .field-row/.goal-form-actions .btn-primary. */
+.attempt-confirm-actions .btn-primary {
+  width: auto;
+  flex: 1 1 auto;
+}
+
+.attempt-status {
+  margin: 0;
+  font-weight: 700;
+}
+
+.attempt-status--success {
+  color: var(--accent);
+}
+
+.attempt-status--fail {
+  color: var(--status-critical);
+}
+
+.attempt-message {
+  margin: 8px 0 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.attempt-message--success {
+  color: var(--text-primary);
+}
+
+.attempt-message--fail {
+  color: var(--text-secondary);
+}
+
 .banner {
   display: flex;
   align-items: flex-start;
@@ -1391,6 +1450,28 @@ a:focus-visible {
   margin: 0 0 2px;
   font-weight: 700;
   font-size: 0.95rem;
+}
+
+.history-attempt-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+.history-attempt-badge--failed {
+  background: var(--status-critical);
+  color: #fff;
+}
+
+.history-attempt-badge--pending {
+  background: var(--surface-2);
+  color: var(--text-muted);
 }
 
 .history-item-detail {

@@ -83,6 +83,7 @@ App.Storage = (function () {
       id: row.id, lift: row.lift, weight: row.weight, reps: row.reps, unit: row.unit,
       estimated1RM: row.estimated_1rm, epley: row.epley, brzycki: row.brzycki, lombardi: row.lombardi,
       bodyweight: row.bodyweight, sex: row.sex, addedWeight: row.added_weight, date: row.date,
+      attemptStatus: row.attempt_status,
     };
   }
 
@@ -91,6 +92,7 @@ App.Storage = (function () {
       id: id, user_id: userId, lift: entry.lift, weight: entry.weight, reps: entry.reps, unit: entry.unit,
       estimated_1rm: entry.estimated1RM, epley: entry.epley, brzycki: entry.brzycki, lombardi: entry.lombardi,
       bodyweight: entry.bodyweight, sex: entry.sex, added_weight: entry.addedWeight, date: entry.date,
+      attempt_status: entry.attemptStatus != null ? entry.attemptStatus : null,
     };
   }
 
@@ -119,6 +121,40 @@ App.Storage = (function () {
     cacheFor(userId).history = list;
     db.from('entries').delete().eq('id', id).then(logIfError('deleteEntry'));
     return list;
+  }
+
+  // Confirms (or fails) a previously-logged, still-pending attempt --
+  // App.Components.ResultPanel's "Did you hit it?" flow. Never touches
+  // anything else about the entry, so a re-attempt (retry) is always a
+  // brand new addEntry() call, not an update to this one.
+  function updateEntryAttemptStatus(userId, id, status) {
+    const list = getHistory(userId).map(function (e) {
+      return e.id === id ? Object.assign({}, e, { attemptStatus: status }) : e;
+    });
+    cacheFor(userId).history = list;
+    db.from('entries').update({ attempt_status: status }).eq('id', id).then(logIfError('updateEntryAttemptStatus'));
+    return list;
+  }
+
+  // The confirmed PB for a lift: the highest estimated1RM among entries
+  // the user actually confirmed they hit (attemptStatus === 'succeeded'),
+  // never the raw just-logged estimate or the most recent entry. Every
+  // consumer that used to mean "your 1RM" -- the standards gauge,
+  // exercise goals, the community 'pr' activity, strength challenge
+  // progress -- reads through this now. Returns the whole entry (not
+  // just a number) since callers need its bodyweight/sex/unit too, not
+  // just the estimate itself. null if nothing's been confirmed yet for
+  // this lift.
+  function getConfirmedPbEntry(userId, lift) {
+    const candidates = getHistory(userId).filter(function (e) {
+      return e.lift === lift && e.attemptStatus === 'succeeded';
+    });
+    if (candidates.length === 0) return null;
+    return candidates.reduce(function (best, e) {
+      const kg = App.Units.convert(e.estimated1RM, e.unit, 'kg');
+      const bestKg = App.Units.convert(best.estimated1RM, best.unit, 'kg');
+      return kg > bestKg ? e : best;
+    });
   }
 
   // ---------- settings (display unit + form defaults) ----------
@@ -644,6 +680,7 @@ App.Storage = (function () {
   return {
     preloadAll,
     getHistory, saveHistory, addEntry, deleteEntry,
+    updateEntryAttemptStatus, getConfirmedPbEntry,
     getSettings, saveSettings,
     getProfile, saveProfile,
     uploadProfilePhoto, getProfilePhotoUrl, getProfilePhotoUrls,

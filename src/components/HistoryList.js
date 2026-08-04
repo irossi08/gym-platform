@@ -23,6 +23,17 @@ App.Components.HistoryList = (function () {
     return e.weight + ' ' + e.unit + ' &times; ' + e.reps + ' reps &bull; ' + formatDate(e.date);
   }
 
+  // Succeeded (a confirmed PB attempt, including every entry grandfathered
+  // in from before this flow existed) reads as the normal/expected case,
+  // so it gets no badge -- only the two states worth calling out
+  // explicitly: a confirmed miss, and a logged set nobody ever confirmed
+  // either way yet.
+  function attemptBadgeHtml(e) {
+    if (e.attemptStatus === 'failed') return '<span class="history-attempt-badge history-attempt-badge--failed">Failed</span>';
+    if (e.attemptStatus !== 'succeeded') return '<span class="history-attempt-badge history-attempt-badge--pending">Not attempted</span>';
+    return '';
+  }
+
   function render(container, state) {
     const entries = state.entries || [];
     const filter = state.filter || 'all';
@@ -64,7 +75,7 @@ App.Components.HistoryList = (function () {
             return (
               '<li class="history-item" data-id="' + e.id + '">' +
                 '<div class="history-item-main">' +
-                  '<p class="history-item-lift">' + liftLabel + '</p>' +
+                  '<p class="history-item-lift">' + liftLabel + attemptBadgeHtml(e) + '</p>' +
                   '<p class="history-item-detail">' + detailLine(e) + '</p>' +
                 '</div>' +
                 '<div class="history-item-side">' +

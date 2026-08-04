@@ -84,12 +84,12 @@ App.TourSteps = [
   {
     route: 'one-rep-max',
     target: '#result-container',
-    message: 'Your estimated 1RM shows up here, averaged across three proven formulas.',
+    message: 'Your target 1RM shows up here, averaged across three proven formulas — it’s a target to attempt, not an automatic PB. Tap “Attempt this weight” and confirm whether you actually hit it; only a confirmed hit ever counts as a new best.',
   },
   {
     route: 'one-rep-max',
     target: '#gauge-container',
-    message: 'And this gauge shows exactly where that lift ranks against lifters of your bodyweight and sex — from untrained up to elite.',
+    message: 'And this gauge shows exactly where your confirmed best for that lift ranks against lifters of your bodyweight and sex — from untrained up to elite.',
   },
 
   // ---------- History ----------

@@ -17,12 +17,6 @@ App.Goals = (function () {
     return log.slice().sort(function (a, b) { return new Date(b.date) - new Date(a.date); })[0];
   }
 
-  function latestEntryForLift(userId, lift) {
-    const history = App.Storage.getHistory(userId).filter(function (e) { return e.lift === lift; });
-    if (history.length === 0) return null;
-    return history.slice().sort(function (a, b) { return new Date(b.date) - new Date(a.date); })[0];
-  }
-
   // First-ever logged value for this lift, in `unit` -- the same "starting
   // point" Home's goal progress chart uses, so the archived achievement's
   // starting value matches what the user watched progress from.
@@ -113,7 +107,10 @@ App.Goals = (function () {
       if (!bwEntry) return null;
       latestValue = App.Units.convert(bwEntry.weight, bwEntry.unit, goal.unit);
     } else {
-      matchedEntry = latestEntryForLift(userId, goal.lift);
+      // The CONFIRMED PB, not the most recently logged entry -- a raw
+      // estimate is just a target to attempt now, so a goal can only be
+      // reached by an entry the user actually confirmed they hit.
+      matchedEntry = App.Storage.getConfirmedPbEntry(userId, goal.lift);
       if (!matchedEntry) return null;
       latestValue = App.Units.convert(matchedEntry.estimated1RM, matchedEntry.unit, goal.unit);
     }
@@ -164,7 +161,7 @@ App.Goals = (function () {
     if (goal.type === 'bodyweight') {
       tier = bodyweightMedalTier(goal);
     } else {
-      const matchedEntry = latestEntryForLift(userId, goal.lift);
+      const matchedEntry = App.Storage.getConfirmedPbEntry(userId, goal.lift);
       tier = matchedEntry ? exerciseMedalTier(matchedEntry) : 'novice';
     }
 

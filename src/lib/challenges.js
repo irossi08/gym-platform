@@ -145,6 +145,9 @@ App.Challenges = (function () {
     end.setHours(23, 59, 59, 999);
     const ratios = App.Storage.getHistory(user.id)
       .filter(function (e) { return e.lift === challenge.lift; })
+      // Only a confirmed hit counts -- a raw logged estimate is just a
+      // target to attempt now, not proof the weight was actually lifted.
+      .filter(function (e) { return e.attemptStatus === 'succeeded'; })
       .filter(function (e) { const d = new Date(e.date); return d >= start && d <= end; })
       .map(function (e) { return (e.weight / e.bodyweight) * 100; })
       .filter(function (r) { return isFinite(r) && r > 0; });

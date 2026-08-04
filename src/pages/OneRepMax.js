@@ -19,13 +19,19 @@ App.Pages.OneRepMax = (function () {
       displayUnit: settings.displayUnit || 'kg',
       formDefaults: settings.formDefaults || profileDefaults,
       lastResult: null,
+      // idle (attemptable) / confirming / succeeded / failed -- see
+      // ResultPanel. justConfirmed/isNewPb only matter for the flavor
+      // message right after an actual confirm action, not when merely
+      // re-displaying an already-confirmed entry (unit toggle, reload).
+      attemptPhase: 'idle',
+      justConfirmed: false,
+      isNewPb: false,
       // The gauge only expands to its full detail once a set is actually
       // logged IN THIS VISIT -- lastResult below can get pre-populated
       // from history on load purely so the result panel/rest-of-page has
-      // something to show, but rendering the full segmented gauge from
-      // that stale, possibly-unrelated-exercise data before the user has
-      // done anything this session is exactly the premature clutter this
-      // flag avoids. See renderGauge().
+      // something to show, but rendering the full segmented gauge before
+      // the user has done anything this session is exactly the premature
+      // clutter this flag avoids. See renderGauge().
       gaugeExpanded: false,
     };
 
@@ -44,8 +50,9 @@ App.Pages.OneRepMax = (function () {
         lift: last.lift,
         sex: last.sex,
         bodyweightKg: App.Units.convert(last.bodyweight, last.unit, 'kg'),
-        oneRmKg: App.Units.convert(last.estimated1RM, last.unit, 'kg'),
+        entryId: last.id,
       };
+      state.attemptPhase = last.attemptStatus === 'succeeded' ? 'succeeded' : last.attemptStatus === 'failed' ? 'failed' : 'idle';
     }
 
     container.innerHTML =
@@ -104,32 +111,91 @@ App.Pages.OneRepMax = (function () {
     }
 
     function renderResult() {
-      App.Components.ResultPanel.render(els.result, { result: getDisplayResult(), unit: state.displayUnit });
+      App.Components.ResultPanel.render(els.result, {
+        result: getDisplayResult(),
+        unit: state.displayUnit,
+        attemptPhase: state.attemptPhase,
+        justConfirmed: state.justConfirmed,
+        isNewPb: state.isNewPb,
+        onAttempt: handleAttempt,
+        onConfirm: handleConfirm,
+      });
     }
 
+    // The gauge ranks the CONFIRMED PB for the current lift -- never the
+    // raw just-logged estimate, and never whatever's in state.lastResult
+    // directly, since that could be a still-pending or even failed
+    // attempt. No confirmed entry yet for this lift (including "nothing
+    // confirmed at all") reads the same as no result -- the collapsed
+    // empty state, same one StandardsGauge already uses.
     function renderGauge() {
       if (!state.gaugeExpanded || !state.lastResult) {
         App.Components.StandardsGauge.render(els.gauge, null);
         return;
       }
-      const lr = state.lastResult;
+      const lift = state.lastResult.lift;
+      const pbEntry = App.Storage.getConfirmedPbEntry(user.id, lift);
+      if (!pbEntry) {
+        App.Components.StandardsGauge.render(els.gauge, null);
+        return;
+      }
       App.Components.StandardsGauge.render(els.gauge, {
-        lift: lr.lift,
-        sex: lr.sex,
-        bodyweightKg: lr.bodyweightKg,
-        oneRmKg: lr.oneRmKg,
+        lift: lift,
+        sex: pbEntry.sex,
+        bodyweightKg: App.Units.convert(pbEntry.bodyweight, pbEntry.unit, 'kg'),
+        oneRmKg: App.Units.convert(pbEntry.estimated1RM, pbEntry.unit, 'kg'),
         displayUnit: state.displayUnit,
       });
     }
 
+    function handleAttempt() {
+      state.attemptPhase = 'confirming';
+      renderResult();
+    }
+
+    function handleConfirm(success) {
+      const lr = state.lastResult;
+      if (!lr || lr.entryId == null) return;
+
+      if (success) {
+        // Captured BEFORE this entry is marked succeeded, so it's
+        // genuinely the PRIOR confirmed max -- 0 if nothing's ever been
+        // confirmed for this lift yet, which makes a first-ever
+        // confirmed attempt trivially "a new PB" too.
+        const priorPbEntry = App.Storage.getConfirmedPbEntry(user.id, lr.lift);
+        const priorBestKg = priorPbEntry ? App.Units.convert(priorPbEntry.estimated1RM, priorPbEntry.unit, 'kg') : 0;
+        const newKg = App.Units.convert(lr.result.average, lr.unit, 'kg');
+        const isNewPb = newKg > priorBestKg;
+
+        App.Storage.updateEntryAttemptStatus(user.id, lr.entryId, 'succeeded');
+
+        if (isNewPb) {
+          App.Communities.logActivity(user.id, 'pr', {
+            lift: lr.lift,
+            lift_label: App.ExerciseLibrary.label(lr.lift),
+            value: App.Units.round(lr.result.average, 1),
+            unit: lr.unit,
+          });
+        }
+
+        const achievedGoal = App.Goals.checkAchievement(user.id);
+        if (achievedGoal) App.Components.GoalCelebration.celebrate(achievedGoal, user);
+
+        state.attemptPhase = 'succeeded';
+        state.isNewPb = isNewPb;
+      } else {
+        App.Storage.updateEntryAttemptStatus(user.id, lr.entryId, 'failed');
+        state.attemptPhase = 'failed';
+        state.isNewPb = false;
+      }
+
+      state.justConfirmed = true;
+      renderResult();
+      renderGauge();
+    }
+
     function handleSubmit(data) {
       const result = App.OneRepMax.estimate(data.weight, data.reps);
-
-      // Captured BEFORE adding this entry, so it's genuinely the prior
-      // best -- 0 if this is the first-ever logged set for this lift.
-      const priorBestKg = App.Storage.getHistory(user.id)
-        .filter(function (e) { return e.lift === data.lift; })
-        .reduce(function (max, e) { return Math.max(max, App.Units.convert(e.estimated1RM, e.unit, 'kg')); }, 0);
 
       const entry = {
         lift: data.lift,
@@ -144,25 +210,17 @@ App.Pages.OneRepMax = (function () {
         sex: data.sex,
         addedWeight: data.addedWeight,
         date: new Date().toISOString(),
+        attemptStatus: null,
       };
-      App.Storage.addEntry(user.id, entry);
+      const list = App.Storage.addEntry(user.id, entry);
+      const savedEntry = list[list.length - 1];
       App.Storage.addBodyweightEntry(user.id, { date: entry.date, weight: data.bodyweight, unit: data.unit });
 
-      // Only a genuinely new best (not just "logged a set") posts to the
-      // community activity feed -- and only once priorBestKg exists as a
-      // real baseline is this even meaningful the first time, but a first-
-      // ever logged set for a lift is trivially "above" a baseline of 0,
-      // which reads fine as "first PR on this exercise" too.
-      const newKg = App.Units.convert(result.average, data.unit, 'kg');
-      if (newKg > priorBestKg) {
-        App.Communities.logActivity(user.id, 'pr', {
-          lift: data.lift,
-          lift_label: App.ExerciseLibrary.label(data.lift),
-          value: App.Units.round(result.average, 1),
-          unit: data.unit,
-        });
-      }
-
+      // Safe to call unconditionally: bodyweight-type goals can still be
+      // affected by the bodyweight entry just added above, and
+      // exercise-type goals only ever move via a confirmed PB now (see
+      // handleConfirm) -- this is a no-op for those until a success
+      // confirmation actually changes the confirmed PB.
       const achievedGoal = App.Goals.checkAchievement(user.id);
       if (achievedGoal) App.Components.GoalCelebration.celebrate(achievedGoal, user);
 
@@ -175,8 +233,11 @@ App.Pages.OneRepMax = (function () {
         lift: data.lift,
         sex: data.sex,
         bodyweightKg: App.Units.convert(data.bodyweight, data.unit, 'kg'),
-        oneRmKg: App.Units.convert(result.average, data.unit, 'kg'),
+        entryId: savedEntry.id,
       };
+      state.attemptPhase = 'idle';
+      state.justConfirmed = false;
+      state.isNewPb = false;
       state.gaugeExpanded = true;
 
       renderResult();
