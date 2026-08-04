@@ -81,10 +81,12 @@ App.Pages.Settings = (function () {
     });
   }
 
-  // Address search (Mapbox Geocoding) or pick-on-map (fixed center pin --
-  // simpler and more reliable than implementing a draggable marker: the
-  // user pans/zooms the map until the pin sits where they want, same
-  // interaction Uber/Instagram use for "drop a pin").
+  // Address search and the map are ONE connected flow, not two separate
+  // pickers: picking a search result drops an actual draggable Mapbox
+  // marker at that spot (flying the map there too), which can then be
+  // dragged to fine-tune, or the map can just be clicked directly to place/
+  // move the marker without searching at all. The marker's current
+  // position, whichever way it got there, is what gets saved.
   function renderGymLocationAddForm(addSlot, user, onSaved) {
     if (!App.Mapbox.isConfigured()) {
       addSlot.innerHTML = '<p class="field-error">Gym location search needs a Mapbox access token configured first (see the setup steps you were given for this feature).</p>';
@@ -93,24 +95,14 @@ App.Pages.Settings = (function () {
 
     addSlot.innerHTML =
       '<div class="community-inline-form">' +
-        '<div class="goal-type-toggle">' +
-          '<button type="button" class="goal-type-btn goal-type-btn--active" data-mode="search">Search address</button>' +
-          '<button type="button" class="goal-type-btn" data-mode="map">Pick on map</button>' +
+        '<div class="field-row">' +
+          '<div class="field"><input type="text" id="gym-loc-search-input" placeholder="Search for your gym’s address…" /></div>' +
+          '<button type="button" class="btn-ghost-sm" id="gym-loc-search-btn">Search</button>' +
         '</div>' +
-        '<div id="gym-loc-search-panel">' +
-          '<div class="field-row">' +
-            '<div class="field"><input type="text" id="gym-loc-search-input" placeholder="Search for your gym’s address…" /></div>' +
-            '<button type="button" class="btn-ghost-sm" id="gym-loc-search-btn">Search</button>' +
-          '</div>' +
-          '<div id="gym-loc-search-results"></div>' +
-        '</div>' +
-        '<div id="gym-loc-map-panel" hidden>' +
-          '<p class="field-hint">Pan and zoom the map so the pin sits on your gym, then confirm below.</p>' +
-          '<div class="gym-loc-map-wrap">' +
-            '<div id="gym-loc-map" class="gym-loc-map"></div>' +
-            '<div class="gym-loc-map-pin">📍</div>' +
-          '</div>' +
-          '<button type="button" class="btn-ghost-sm" id="gym-loc-map-use-btn">Use map center</button>' +
+        '<div id="gym-loc-search-results"></div>' +
+        '<p class="field-hint">Pick a search result to drop the pin there, or click anywhere on the map to place it yourself. Drag the pin to fine-tune it.</p>' +
+        '<div class="gym-loc-map-wrap">' +
+          '<div id="gym-loc-map" class="gym-loc-map"></div>' +
         '</div>' +
         '<div id="gym-loc-name-panel" hidden>' +
           '<div class="field"><label for="gym-loc-name-input">Name this location</label><input type="text" id="gym-loc-name-input" placeholder="e.g. Downtown Gym" /></div>' +
@@ -120,36 +112,41 @@ App.Pages.Settings = (function () {
       '</div>';
 
     let pendingLocation = null;
-    let mapInstance = null;
+    let marker = null;
 
-    const searchPanel = addSlot.querySelector('#gym-loc-search-panel');
-    const mapPanel = addSlot.querySelector('#gym-loc-map-panel');
     const namePanel = addSlot.querySelector('#gym-loc-name-panel');
     const errorEl = addSlot.querySelector('#gym-loc-error');
 
-    addSlot.querySelectorAll('[data-mode]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        addSlot.querySelectorAll('[data-mode]').forEach(function (b) { b.classList.toggle('goal-type-btn--active', b === btn); });
-        const mode = btn.dataset.mode;
-        searchPanel.hidden = mode !== 'search';
-        mapPanel.hidden = mode !== 'map';
-        namePanel.hidden = true;
-        if (mode === 'map' && !mapInstance) {
-          mapInstance = new window.mapboxgl.Map({
-            container: addSlot.querySelector('#gym-loc-map'),
-            style: 'mapbox://styles/mapbox/streets-v12',
-            center: [-98.5, 39.8],
-            zoom: 3,
-          });
-        }
-      });
+    const mapInstance = new window.mapboxgl.Map({
+      container: addSlot.querySelector('#gym-loc-map'),
+      style: 'mapbox://styles/mapbox/streets-v12',
+      center: [-98.5, 39.8],
+      zoom: 3,
+    });
+
+    function placeMarker(lng, lat) {
+      pendingLocation = { lat: lat, lng: lng };
+      errorEl.textContent = '';
+      namePanel.hidden = false;
+      if (!marker) {
+        marker = new window.mapboxgl.Marker({ draggable: true }).setLngLat([lng, lat]).addTo(mapInstance);
+        marker.on('dragend', function () {
+          const pos = marker.getLngLat();
+          pendingLocation = { lat: pos.lat, lng: pos.lng };
+        });
+      } else {
+        marker.setLngLat([lng, lat]);
+      }
+    }
+
+    mapInstance.on('click', function (e) {
+      placeMarker(e.lngLat.lng, e.lngLat.lat);
     });
 
     addSlot.querySelector('#gym-loc-search-btn').addEventListener('click', function () {
       const query = addSlot.querySelector('#gym-loc-search-input').value.trim();
       const resultsEl = addSlot.querySelector('#gym-loc-search-results');
       errorEl.textContent = '';
-      namePanel.hidden = true;
       if (!query) { errorEl.textContent = 'Enter an address or place name.'; return; }
       resultsEl.innerHTML = '<p class="empty-hint">Searching…</p>';
       App.Mapbox.geocode(query).then(function (results) {
@@ -167,24 +164,15 @@ App.Pages.Settings = (function () {
         resultsEl.querySelectorAll('.gym-loc-result-btn').forEach(function (btn) {
           btn.addEventListener('click', function () {
             const r = results[parseInt(btn.dataset.index, 10)];
-            pendingLocation = { lat: r.lat, lng: r.lng };
+            mapInstance.flyTo({ center: [r.lng, r.lat], zoom: 16 });
+            placeMarker(r.lng, r.lat);
             addSlot.querySelector('#gym-loc-name-input').value = r.name;
-            namePanel.hidden = false;
           });
         });
       }).catch(function () {
         resultsEl.innerHTML = '';
         errorEl.textContent = 'Search failed. Please try again.';
       });
-    });
-
-    addSlot.querySelector('#gym-loc-map-use-btn').addEventListener('click', function () {
-      if (!mapInstance) return;
-      const center = mapInstance.getCenter();
-      pendingLocation = { lat: center.lat, lng: center.lng };
-      addSlot.querySelector('#gym-loc-name-input').value = '';
-      errorEl.textContent = '';
-      namePanel.hidden = false;
     });
 
     addSlot.querySelector('#gym-loc-save-btn').addEventListener('click', function () {
