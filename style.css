@@ -84,7 +84,7 @@ a:focus-visible {
   /* Top padding clears the fixed navbar (see .navbar); bottom padding
      clears the fixed quick-links bar (see .page-quick-links) -- same
      treatment on both ends, content never sits hidden behind either. */
-  padding: 72px 16px 96px;
+  padding: 72px 16px 108px;
 }
 
 .page-landing,
@@ -1932,7 +1932,7 @@ a:focus-visible {
   overflow-x: auto;
   justify-content: space-evenly;
   gap: 8px;
-  padding: 12px 16px;
+  padding: 16px 16px;
   background: var(--surface);
   border-top: 1px solid var(--border);
 }
@@ -1946,8 +1946,8 @@ a:focus-visible {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
   color: var(--accent);
   text-decoration: none;
   filter: drop-shadow(0 0 4px var(--accent-glow));
@@ -1960,8 +1960,8 @@ a:focus-visible {
 }
 
 .page-quick-link-icon {
-  width: 20px;
-  height: 20px;
+  width: 23px;
+  height: 23px;
   display: block;
 }
 
