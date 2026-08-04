@@ -53,6 +53,7 @@ App.Pages.OneRepMax = (function () {
         '<div class="card" id="info-panel-container"></div>' +
         '<div class="card" id="lift-form-container"></div>' +
         '<div class="card" id="result-container"></div>' +
+        '<div id="rest-timer-prompt-container"></div>' +
         '<div class="card" id="gauge-container"></div>' +
       '</section>';
 
@@ -60,6 +61,7 @@ App.Pages.OneRepMax = (function () {
       infoPanel: container.querySelector('#info-panel-container'),
       form: container.querySelector('#lift-form-container'),
       result: container.querySelector('#result-container'),
+      restTimerPrompt: container.querySelector('#rest-timer-prompt-container'),
       gauge: container.querySelector('#gauge-container'),
       unitToggle: container.querySelector('#unit-toggle'),
     };
@@ -149,6 +151,15 @@ App.Pages.OneRepMax = (function () {
       renderResult();
       renderGauge();
       els.result.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+      // Manual start only -- this is a tap-to-start prompt, not an
+      // auto-starting timer. Only ever shown right after an actual submit
+      // in this page visit (not just because a lastResult exists from
+      // history on page load), and reflects the SCHEDULED workout's rest
+      // setting for this exercise if today's split has it, falling back to
+      // a sensible default otherwise (see RestTimer.getRestDurationFor).
+      const restSeconds = App.Components.RestTimer.getRestDurationFor(user, data.lift);
+      App.Components.RestTimer.showPrompt(els.restTimerPrompt, restSeconds);
     }
 
     function wireUnitToggle() {
