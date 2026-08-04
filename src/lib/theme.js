@@ -9,28 +9,28 @@ window.App = window.App || {};
  *
  * Color is NOT user-customizable -- Settings only offers a light/dark mode
  * toggle (App.Pages.Settings), and every color value here comes from one of
- * the two fixed PRESETS below. There is exactly one accent (electric blue)
- * used everywhere, including Community -- it used to get its own fixed
- * amber/orange identity via a separate override, which has been removed
- * entirely so every section reads the same --accent consistently.
+ * the two fixed PRESETS below. There is exactly one accent (crimson red,
+ * matching the app's logo) used everywhere, including Community -- it used
+ * to get its own fixed amber/orange identity via a separate override,
+ * which has been removed entirely so every section reads the same
+ * --accent consistently.
  *
- * Light mode's accent is a deliberately darker shade of the same blue, not
- * the dark-mode value reused as-is -- the dark-mode blue (#1e9bff) only
- * clears ~2.9:1 contrast against a white background, short of WCAG AA's
- * 4.5:1 body-text threshold, since it's used as plain text/icon color in a
- * lot of places, not just button fills with their own ink color. #006cc2
- * (same hue/saturation, lower lightness) clears ~5.3:1. accentInk is a
- * fixed per-preset value rather than computed from luminance -- with only
- * two known accent values now (not an arbitrary user-chosen one), each was
- * checked by hand against both candidate inks and the actual WCAG contrast
- * ratio picked the winner (dark mode: black ink at ~7.2:1 clearly beats
- * white's ~2.9:1, despite blue's naive perceptual-luminance weighting
- * suggesting white -- that naive heuristic is well known to misjudge
- * blues, which is exactly why this is hand-picked instead). The
- * chart/gauge/status tokens are similarly given a light counterpart rather
- * than left dark-tuned, since e.g. --gridline (#232323, barely lighter
- * than dark mode's near-black bg) would render as a heavy near-black line
- * across a white page if left unchanged.
+ * Dark and light mode use two different shades of the same crimson hue,
+ * not one value reused as-is, because crimson's natural lightness doesn't
+ * read well as plain text/icon color against BOTH a near-black and a
+ * white background at once: a true crimson like #c41e3a clears ~5.8:1
+ * against white (comfortably past WCAG AA's 4.5:1 body-text threshold)
+ * but only ~3.4:1 against near-black -- so dark mode uses a brightened
+ * variant (#e13854, same hue/saturation, higher lightness) that clears
+ * ~4.6:1 instead, while light mode uses the true crimson value directly.
+ * accentInk is a fixed per-preset value rather than computed from
+ * luminance -- with only two known accent values (not an arbitrary
+ * user-chosen one), each was checked by hand against both candidate inks
+ * and the actual WCAG contrast ratio picked the winner. The chart/gauge/
+ * status tokens are similarly given a light counterpart rather than left
+ * dark-tuned, since e.g. --gridline (#232323, barely lighter than dark
+ * mode's near-black bg) would render as a heavy near-black line across a
+ * white page if left unchanged.
  */
 App.Theme = (function () {
   const PRESETS = {
@@ -38,7 +38,7 @@ App.Theme = (function () {
       bg: '#0a0a0a',
       surface: '#161616',
       text: '#f5f5f5',
-      accent: '#1e9bff',
+      accent: '#e13854',
       accentInk: '#0a0a0a',
       gridline: '#232323',
       baseline: '#3c3c3c',
@@ -51,7 +51,7 @@ App.Theme = (function () {
       bg: '#ffffff',
       surface: '#f2f2f2',
       text: '#1a1a1a',
-      accent: '#006cc2',
+      accent: '#c41e3a',
       accentInk: '#ffffff',
       gridline: '#e4e4e4',
       baseline: '#c7c7c7',

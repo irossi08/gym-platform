@@ -9,15 +9,15 @@
   --text-muted: #666666;
   --border: rgba(255, 255, 255, 0.09);
 
-  /* Baseline accent is electric blue -- --accent-rgb is the plain "r, g, b"
-     triplet (no rgba() wrapper) so any rule needing a non-default alpha can
-     do rgba(var(--accent-rgb), X) and still react correctly if this default
-     ever changes, instead of hardcoding a color that only ever matched
-     this one. One single accent everywhere, including Community, which
-     used to get its own fixed amber/orange override -- removed, see
-     App.Theme. */
-  --accent: #1e9bff;
-  --accent-rgb: 30, 155, 255;
+  /* Baseline accent is crimson red, matching the app's logo -- --accent-rgb
+     is the plain "r, g, b" triplet (no rgba() wrapper) so any rule needing
+     a non-default alpha can do rgba(var(--accent-rgb), X) and still react
+     correctly if this default ever changes, instead of hardcoding a color
+     that only ever matched this one. One single accent everywhere,
+     including Community, which used to get its own fixed amber/orange
+     override -- removed, see App.Theme. */
+  --accent: #e13854;
+  --accent-rgb: 225, 56, 84;
   --accent-ink: #0a0a0a;
   --accent-glow: rgba(var(--accent-rgb), 0.35);
 
