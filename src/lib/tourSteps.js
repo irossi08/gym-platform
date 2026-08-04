@@ -52,7 +52,7 @@ App.TourSteps = [
   {
     route: 'home',
     target: '.page-quick-links',
-    message: 'This bar at the bottom is always there — tap an icon to jump straight to Home, 1 Rep Max, History, Build My Split, Community, or Achievements (once you’ve unlocked it). The hamburger menu in the top-left corner gets you to the same pages too, plus Log out.',
+    message: 'This bar at the bottom is always there — tap an icon to jump straight to Home, 1 Rep Max, History, Build My Split, Community, or Achievements (once you’ve unlocked it). The hamburger menu in the top-left corner gets you to the same pages too, plus Log out. The bar at the very top is fixed in place too — your name and avatar there open your full Profile, and the gear icon next to them opens Settings.',
   },
   {
     route: 'profile',
@@ -127,6 +127,18 @@ App.TourSteps = [
       if (head && head.getAttribute('aria-expanded') !== 'true') head.click();
     },
     message: 'Missed a workout? Tap here to reschedule it to another day — your streak stays safe as long as you complete it there instead.',
+  },
+
+  // ---------- Community ----------
+  {
+    route: 'community',
+    target: '.community-id-row',
+    message: 'This is your unique ID — share it so a friend can add you. Add someone using theirs in the field just below it. Once you’re friends, this same list is also available as a quick dropdown from the Friends icon on Home.',
+  },
+  {
+    route: 'community',
+    target: '#community-create-btn',
+    message: 'Create a community — public, so anyone can find and join it, or private, joinable only via an invite link — join one with a code or link, or browse public ones here. Open any community you’re in and you’ll find it split into three tabs: Overview (details, member list, invite link), Challenges (create or join lift/bodyweight challenges with friends), and Activity (a feed of PRs, streak milestones, challenge wins, and new members).',
   },
 
   // ---------- Achievements (only if already unlocked) ----------
