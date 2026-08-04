@@ -5,6 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
   <meta name="theme-color" content="#0A0A0A" />
   <title>Crimson Rep — Find Your True Max</title>
+
+  <!-- PWA: installability. No functional change to the app itself -- just
+       manifest + icons + service worker registration so both iOS Safari
+       and Android Chrome offer "Add to Home Screen" / an install prompt,
+       and the installed app opens full-screen without browser chrome. -->
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/png" href="icons/favicon-32.png" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+  <meta name="apple-mobile-web-app-title" content="Crimson Rep" />
+  <meta name="mobile-web-app-capable" content="yes" />
+
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -14,6 +27,20 @@
 <body>
   <div id="navbar-root"></div>
   <main id="app-root"></main>
+
+  <script>
+    // PWA: register the service worker (app-shell caching -- see sw.js).
+    // Silently no-ops over plain http:// on anything but localhost, since
+    // service workers require a secure context -- that's expected, not an
+    // error, for local testing without HTTPS.
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('./sw.js').catch(function (err) {
+          console.warn('[PWA] service worker registration failed:', err);
+        });
+      });
+    }
+  </script>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.js"></script>
