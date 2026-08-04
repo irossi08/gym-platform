@@ -1,3 +1,9 @@
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Only present for api/send-notifications.js's dependencies (web-push,
+# @supabase/supabase-js) -- Vercel installs these itself from
+# package.json during deployment, this is never meant to be committed.
+node_modules/
+

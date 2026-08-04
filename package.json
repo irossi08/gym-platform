@@ -1,0 +1,9 @@
+{
+  "name": "gym-platform-functions",
+  "private": true,
+  "description": "Dependencies for this project's one Vercel Serverless Function (api/send-notifications.js) only -- the app itself is still a plain static site with no build step; this doesn't add one.",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.4",
+    "web-push": "^3.6.7"
+  }
+}

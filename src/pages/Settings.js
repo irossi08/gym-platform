@@ -45,6 +45,61 @@ App.Pages.Settings = (function () {
     });
   }
 
+  // Single combined opt-in -- not one toggle per trigger type. The daily
+  // server-side check (api/send-notifications.js) decides which of the
+  // two messages (missed today's scheduled workout / streak at risk)
+  // applies, if either; this button only ever turns the subscription as
+  // a whole on or off.
+  function wireNotifications(container, user) {
+    const hintEl = container.querySelector('#settings-push-hint');
+    const btn = container.querySelector('#settings-push-toggle');
+    const errorEl = container.querySelector('#settings-push-error');
+
+    if (App.Push.needsIOSInstall()) {
+      hintEl.textContent = 'On iPhone, push notifications only work once Crimson Rep is added to your Home Screen: tap Share, then “Add to Home Screen” — then come back here to turn this on.';
+      return;
+    }
+    if (!App.Push.isSupported()) {
+      hintEl.textContent = 'Push notifications aren’t supported in this browser.';
+      return;
+    }
+
+    hintEl.textContent = 'Get a push notification — even if the app is closed — if you haven’t logged today’s scheduled workout by evening, or if your streak is about to break.';
+    btn.hidden = false;
+    btn.disabled = true;
+    btn.textContent = 'Loading…';
+
+    let enabled = false;
+    function paintButton() {
+      btn.textContent = enabled ? 'Disable workout reminders' : 'Enable workout reminders';
+      btn.classList.toggle('btn-primary', !enabled);
+      btn.classList.toggle('btn-ghost-sm', enabled);
+    }
+
+    App.Push.getEnabledStatus(user.id).then(function (isEnabled) {
+      enabled = isEnabled;
+      btn.disabled = false;
+      paintButton();
+    });
+
+    btn.addEventListener('click', function () {
+      errorEl.textContent = '';
+      btn.disabled = true;
+      btn.textContent = enabled ? 'Disabling…' : 'Enabling…';
+      const action = enabled ? App.Push.unsubscribe(user.id) : App.Push.subscribe(user.id);
+      action.then(function (res) {
+        btn.disabled = false;
+        if (!res.ok) {
+          errorEl.textContent = res.error || 'Something went wrong. Please try again.';
+          paintButton();
+          return;
+        }
+        enabled = !enabled;
+        paintButton();
+      });
+    });
+  }
+
   function wireGymLocations(container, user) {
     refreshGymLocationsList(container, user);
 
@@ -252,12 +307,19 @@ App.Pages.Settings = (function () {
             '<button type="button" class="btn-ghost-sm" id="gym-location-add-btn">Add a gym location</button>' +
             '<div id="gym-location-add-slot"></div>' +
           '</div>' +
+          '<div class="card" id="settings-notifications-card">' +
+            '<h2 class="section-title">Notifications</h2>' +
+            '<p class="field-hint" id="settings-push-hint"></p>' +
+            '<button type="button" class="btn-ghost-sm" id="settings-push-toggle" hidden></button>' +
+            '<p class="field-error" id="settings-push-error"></p>' +
+          '</div>' +
           '<button type="button" class="btn-ghost settings-reset-btn" id="settings-reset">Reset to default appearance</button>' +
         '</section>';
 
       App.Components.StreakBadge.render(container.querySelector('#settings-streak-badge'), user);
       App.Components.QuickLinks.render(container.querySelector('#settings-quick-links'), user, 'settings');
       wireGymLocations(container, user);
+      wireNotifications(container, user);
 
       container.querySelectorAll('.settings-toggle').forEach(function (group) {
         const key = group.dataset.group;

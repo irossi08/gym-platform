@@ -17,7 +17,7 @@
 // file's own bytes -- if this string doesn't change, the browser has no
 // way to know the precached files are stale, and anyone with the PWA
 // already installed keeps getting the old cached version indefinitely.
-const CACHE_VERSION = 'crimson-rep-v22';
+const CACHE_VERSION = 'crimson-rep-v23';
 
 const PRECACHE_URLS = [
   './',
@@ -35,6 +35,7 @@ const PRECACHE_URLS = [
   './src/lib/exercisePool.js',
   './src/lib/auth.js',
   './src/lib/storage.js',
+  './src/lib/push.js',
   './src/lib/splitBuilder.js',
   './src/lib/schedule.js',
   './src/lib/goals.js',
@@ -149,6 +150,48 @@ self.addEventListener('fetch', function (event) {
         return undefined;
       });
       return cached || networkFetch;
+    })
+  );
+});
+
+// ---------- Web Push (workout reminders / streak-at-risk) ----------
+// The payload is sent as JSON by api/send-notifications.js (the daily
+// Vercel Cron job) -- {title, body, url}. Falls back to plain defaults if
+// parsing fails for any reason, since a push with a broken/missing body
+// should still show SOMETHING rather than silently do nothing.
+self.addEventListener('push', function (event) {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; } catch (e) { /* leave data = {} */ }
+
+  const title = data.title || 'Crimson Rep';
+  const options = {
+    body: data.body || '',
+    icon: './icons/icon-192.png',
+    badge: './icons/icon-192.png',
+    data: { url: data.url || './#/home' },
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// Focuses an already-open tab if one exists (navigating it to the target
+// route) rather than always opening a new one -- this is a hash-routed
+// single-page app, so index.html is every "page" regardless of which URL
+// the notification points at.
+self.addEventListener('notificationclick', function (event) {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || './';
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clientList) {
+      for (let i = 0; i < clientList.length; i++) {
+        const client = clientList[i];
+        if ('focus' in client) {
+          if ('navigate' in client) client.navigate(url);
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) return clients.openWindow(url);
     })
   );
 });

@@ -1012,6 +1012,37 @@ create policy "community_activity_insert" on public.community_activity
     user_id = auth.uid() and public.is_community_member(community_id, auth.uid())
   );
 
+-- ---------- push_subscriptions (Web Push opt-in: one combined toggle,
+-- not per-trigger-type -- workout-reminder and streak-at-risk pushes both
+-- read this same row) ----------
+-- One row per user (a re-subscribe just upserts fresh endpoint/keys over
+-- the same row) rather than one row per device/browser -- matches the
+-- single-toggle, single-subscription scope this feature was asked for.
+-- auth_key (not "auth", which would shadow the auth.* schema name) holds
+-- the subscription's auth secret; p256dh its public key -- both required
+-- by the Web Push protocol alongside the endpoint URL.
+create table if not exists public.push_subscriptions (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  endpoint text not null,
+  p256dh text not null,
+  auth_key text not null,
+  enabled boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.push_subscriptions enable row level security;
+drop policy if exists "push_subscriptions_owner" on public.push_subscriptions;
+create policy "push_subscriptions_owner" on public.push_subscriptions
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- No policy grants the daily cron job access -- it isn't a signed-in user
+-- at all, so RLS (owner-only above) would block it from ever seeing
+-- anyone else's row. It authenticates with the Supabase SERVICE ROLE key
+-- instead (see api/send-notifications.js), which bypasses RLS entirely
+-- by design -- the standard, correct way for a trusted backend job to
+-- read across every user, same as any admin/cron integration.
+
 -- ---------- verification ----------
 -- Run this separately after the script above to confirm, from Postgres's
 -- own catalog (not the SQL Editor's pre-run warning banner, which can fire
