@@ -19,6 +19,14 @@ App.Pages.OneRepMax = (function () {
       displayUnit: settings.displayUnit || 'kg',
       formDefaults: settings.formDefaults || profileDefaults,
       lastResult: null,
+      // The gauge only expands to its full detail once a set is actually
+      // logged IN THIS VISIT -- lastResult below can get pre-populated
+      // from history on load purely so the result panel/rest-of-page has
+      // something to show, but rendering the full segmented gauge from
+      // that stale, possibly-unrelated-exercise data before the user has
+      // done anything this session is exactly the premature clutter this
+      // flag avoids. See renderGauge().
+      gaugeExpanded: false,
     };
 
     const history = App.Storage.getHistory(user.id);
@@ -100,7 +108,7 @@ App.Pages.OneRepMax = (function () {
     }
 
     function renderGauge() {
-      if (!state.lastResult) {
+      if (!state.gaugeExpanded || !state.lastResult) {
         App.Components.StandardsGauge.render(els.gauge, null);
         return;
       }
@@ -169,6 +177,7 @@ App.Pages.OneRepMax = (function () {
         bodyweightKg: App.Units.convert(data.bodyweight, data.unit, 'kg'),
         oneRmKg: App.Units.convert(result.average, data.unit, 'kg'),
       };
+      state.gaugeExpanded = true;
 
       renderResult();
       renderGauge();
