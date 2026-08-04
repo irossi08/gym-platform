@@ -81,9 +81,10 @@ a:focus-visible {
 #app-root {
   max-width: 640px;
   margin: 0 auto;
-  /* Extra bottom padding clears the fixed quick-links bar (see
-     .page-quick-links) so content never sits hidden behind it. */
-  padding: 0 16px 96px;
+  /* Top padding clears the fixed navbar (see .navbar); bottom padding
+     clears the fixed quick-links bar (see .page-quick-links) -- same
+     treatment on both ends, content never sits hidden behind either. */
+  padding: 72px 16px 96px;
 }
 
 .page-landing,
@@ -159,17 +160,20 @@ a:focus-visible {
 /* ---------- Navbar ---------- */
 
 .navbar {
+  width: 100%;
   max-width: 640px;
   margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 14px 16px;
-  position: sticky;
+  position: fixed;
+  left: 0;
+  right: 0;
   top: 0;
   background: rgba(10, 10, 10, 0.9);
   backdrop-filter: blur(6px);
-  z-index: 10;
+  z-index: 500;
   border-bottom: 1px solid var(--border);
 }
 
@@ -324,6 +328,32 @@ a:focus-visible {
 .navbar-user {
   color: var(--text-muted);
   font-size: 0.85rem;
+}
+
+.navbar-settings-btn {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.navbar-settings-btn:hover,
+.navbar-settings-btn--active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.navbar-settings-icon {
+  width: 18px;
+  height: 18px;
+  display: block;
 }
 
 /* ---------- Buttons ---------- */
@@ -3741,7 +3771,7 @@ body[data-view-style="card"] .ex-picker-option {
 
 .app-toast {
   position: fixed;
-  top: 16px;
+  top: 78px; /* clears the fixed navbar (see .navbar) instead of sitting on top of it */
   left: 50%;
   transform: translateX(-50%);
   z-index: 1200;

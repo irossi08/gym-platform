@@ -73,7 +73,6 @@ App.Components.QuickLinks = (function () {
     { route: 'split-builder', href: '#/split-builder', label: 'Build My Split', icon: 'calendar' },
     { route: 'community', href: '#/community', label: 'Community', icon: 'people' },
     { route: 'achievements', href: '#/achievements', label: 'Achievements', icon: 'trophy' },
-    { route: 'settings', href: '#/settings', label: 'Settings', icon: 'gear' },
   ];
 
   function render(container, user, currentRoute) {

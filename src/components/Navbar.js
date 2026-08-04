@@ -15,6 +15,20 @@ App.Components = App.Components || {};
 App.Components.Navbar = (function () {
   let outsideClickWired = false;
 
+  function gearIconSvg() {
+    let teeth = '';
+    for (let i = 0; i < 6; i++) {
+      teeth += '<rect x="10.5" y="1.5" width="3" height="4" rx="1" fill="currentColor" transform="rotate(' + (i * 60) + ' 12 12)" />';
+    }
+    return (
+      '<svg viewBox="0 0 24 24" class="navbar-settings-icon" aria-hidden="true">' +
+        '<circle cx="12" cy="12" r="6" fill="none" stroke="currentColor" stroke-width="2" />' +
+        teeth +
+        '<circle cx="12" cy="12" r="2" fill="currentColor" />' +
+      '</svg>'
+    );
+  }
+
   function link(href, label, route, activeRoute, extraClass) {
     // Community has nested sub-routes ("community/<id>", ".../challenge/<id>")
     // -- comparing base segments keeps the Community link highlighted
@@ -80,6 +94,9 @@ App.Components.Navbar = (function () {
         '</div>' +
         '<div class="navbar-right">' +
           '<span class="navbar-user">' + escapeHtml(user.username) + '</span>' +
+          '<a href="#/settings" class="navbar-settings-btn' + ((activeRoute || '').split('/')[0] === 'settings' ? ' navbar-settings-btn--active' : '') + '" title="Settings" aria-label="Settings">' +
+            gearIconSvg() +
+          '</a>' +
         '</div>';
     } else {
       bodyHtml =
