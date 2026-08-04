@@ -111,6 +111,20 @@ a:focus-visible {
   border-left-color: var(--accent);
 }
 
+/* Extra visual weight for a card that's the primary action on its page
+   (currently just Home's Today's Workout card) -- a thicker accent edge,
+   a subtle tinted wash, and a bigger heading, layered on top of .card
+   rather than replacing it so it still gets everything else .card has. */
+.card--primary {
+  border-left-width: 6px;
+  background: linear-gradient(160deg, rgba(var(--accent-rgb), 0.10), var(--surface) 55%);
+  box-shadow: 0 6px 20px rgba(var(--accent-rgb), 0.10);
+}
+
+.card--primary .section-title {
+  font-size: 1.6rem;
+}
+
 .section-title {
   position: relative;
   font-family: var(--font-display);
@@ -328,9 +342,44 @@ a:focus-visible {
   border-radius: 2px;
 }
 
+.navbar-profile-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+}
+
+.navbar-avatar {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+.navbar-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
 .navbar-user {
   color: var(--text-muted);
   font-size: 0.85rem;
+  transition: color 0.15s ease;
+}
+
+.navbar-profile-link:hover .navbar-user,
+.navbar-profile-link--active .navbar-user {
+  color: var(--accent);
+}
+
+.navbar-profile-link:hover .navbar-avatar,
+.navbar-profile-link--active .navbar-avatar {
+  border-color: var(--accent);
 }
 
 .navbar-settings-btn {
@@ -1833,8 +1882,8 @@ a:focus-visible {
   letter-spacing: 0.02em;
 }
 
-/* Soil browns plus the app's existing accent green -- no themed exception
-   needed the way the fire icon's bright orange/yellow was. */
+/* Soil browns plus the app's own accent color (.seedling-leaf) -- no
+   themed exception needed the way the fire icon's bright orange/yellow was. */
 .seedling-soil { fill: #3b2a18; }
 .seedling-soil-shadow { fill: #251a0f; }
 .seedling-seed { fill: #c9a86a; }
@@ -2032,6 +2081,41 @@ a:focus-visible {
 
 .home-trend-wrap {
   width: 100%;
+}
+
+/* Today/Progress tabs -- plain show/hide on two panels rendered once, not
+   a route change, so switching tabs is instant and never re-fetches
+   anything. Same segmented look as .auth-tabs but its own class rather
+   than reusing that one directly, since Auth's tabs are route links and
+   these are in-page toggle buttons -- no shared behavior to couple to. */
+.home-tabs {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: var(--density-section-gap);
+}
+
+.home-tab-btn {
+  flex: 1;
+  text-align: center;
+  padding: 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.home-tab-btn--active {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.home-tab-btn:not(.home-tab-btn--active):hover {
+  color: var(--accent);
 }
 
 /* ---------- Progress chart (Home's 1RM trend: color legend, range, search) ---------- */
@@ -2953,7 +3037,7 @@ body[data-view-style="card"] .ex-picker-option {
   width: 100%;
 }
 
-/* ---------- Profile card (Home) ---------- */
+/* ---------- Profile card (Profile page) ---------- */
 
 .profile-card-inner {
   position: relative;

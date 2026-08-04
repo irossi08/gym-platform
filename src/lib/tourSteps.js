@@ -4,8 +4,11 @@ window.App = window.App || {};
  * Main onboarding tour step config, driving App.Components.TourOverlay. Each
  * step is data, not logic: which route it needs (null = stay put), a CSS
  * selector for the real element to spotlight (null = no spotlight, just a
- * centered message), and the robot's line (a plain string, or a function of
- * the current user for a message that needs to check live state).
+ * centered message), the robot's line (a plain string, or a function of
+ * the current user for a message that needs to check live state), and an
+ * optional `before` callback for DOM prep TourOverlay can't infer on its
+ * own -- Home's Progress-tab steps use it to switch tabs, since their
+ * target is real but hidden (display: none) until that tab is active.
  *
  * The Split Builder day-card/missed-workout steps and the Achievements step
  * all target elements that only exist once there's something to show (a
@@ -19,23 +22,13 @@ App.TourSteps = [
   // ---------- Home ----------
   {
     route: 'home',
-    target: '#home-profile-container',
-    message: 'This is your profile card — your picture (whichever you chose: an uploaded photo or a preset avatar), name, age, bodyweight, and current streak. Any medals you’ve earned sit right on the bottom edge of your picture, and tapping them opens the full list. The little pencil icon opens an edit form any time you want to update your details or swap your picture.',
-  },
-  {
-    route: 'home',
-    target: '#home-trend-container',
-    message: 'This is your 1-rep-max progress graph. Every set you log for each exercise plots here over time — the legend is color-coded and searchable, and the range selector above it lets you zoom from the last month out to the last year.',
-  },
-  {
-    route: 'home',
     target: '#home-streak-badge',
     message: 'This little seedling tracks your training streak — it grows a bit taller with every consecutive scheduled day you complete. Tap it any time to open the full-size version.',
   },
   {
     route: 'home',
     target: '#home-today-container',
-    message: '“Today’s Workout” shows whatever your split has scheduled for today, with a one-tap “Mark complete” button when you’re done.',
+    message: '“Today’s Workout” shows whatever your split has scheduled for today, with a one-tap “Mark complete” button when you’re done — this is the Today tab, which is where Home opens by default.',
   },
   {
     route: 'home',
@@ -44,8 +37,27 @@ App.TourSteps = [
   },
   {
     route: 'home',
+    target: '#home-trend-container',
+    // Progress' contents are hidden until its tab is tapped -- switch to
+    // it first so the graph actually has a real size to spotlight.
+    before: function () { const btn = document.querySelector('[data-tab="progress"]'); if (btn) btn.click(); },
+    message: 'Tap Progress for the rest: this is your 1-rep-max progress graph. Every set you log for each exercise plots here over time — the legend is color-coded and searchable, and the range selector above it lets you zoom from the last month out to the last year.',
+  },
+  {
+    route: 'home',
+    target: '#home-recap-container',
+    before: function () { const btn = document.querySelector('[data-tab="progress"]'); if (btn) btn.click(); },
+    message: 'And this is your month so far — workouts logged, sets logged, current streak, and your biggest lift increase this month, updating live as the month goes on.',
+  },
+  {
+    route: 'home',
     target: '.page-quick-links',
-    message: 'This bar at the bottom is always there — tap an icon to jump straight to Home, 1 Rep Max, History, Build My Split, Achievements (once you’ve unlocked it), or Settings. The hamburger menu in the top-left corner gets you to the same pages too, plus Log out.',
+    message: 'This bar at the bottom is always there — tap an icon to jump straight to Home, 1 Rep Max, History, Build My Split, Community, or Achievements (once you’ve unlocked it). The hamburger menu in the top-left corner gets you to the same pages too, plus Log out.',
+  },
+  {
+    route: 'profile',
+    target: '#profile-card-container',
+    message: 'Your full profile lives here now — picture (an uploaded photo or a preset avatar), name, age, bodyweight, and current streak. Any medals you’ve earned sit right on the bottom edge of your picture, and tapping them opens the full list. The pencil icon opens an edit form any time you want to update your details or swap your picture. Get here any time from your name in the top bar.',
   },
 
   // ---------- 1 Rep Max ----------

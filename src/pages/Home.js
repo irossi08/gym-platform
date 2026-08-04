@@ -320,65 +320,6 @@ App.Pages.Home = (function () {
     });
   }
 
-  // Profile card: avatar (uploaded photo or preset), name/age/bodyweight,
-  // current streak, up to 3 most-recent earned medals overlapping the
-  // avatar's lower edge (the whole cluster links to the full Achievements
-  // list), and an edit pencil opening ProfileEditModal. The profile itself
-  // is guaranteed to exist by the time Home ever renders -- router.js
-  // redirects to the mandatory setup flow otherwise.
-  function renderProfileCard(container, user) {
-    const profile = App.Storage.getProfile(user.id);
-    const streak = App.Storage.getStreak(user.id);
-    const achievements = App.Storage.getAchievements(user.id)
-      .slice()
-      .sort(function (a, b) { return new Date(b.achievedAt) - new Date(a.achievedAt); });
-    const recentMedals = achievements.slice(0, 3);
-
-    const displayUnit = App.Storage.getSettings(user.id).displayUnit || profile.bodyweightUnit || 'kg';
-    const bwText = profile.bodyweight != null
-      ? App.Units.round(App.Units.convert(profile.bodyweight, profile.bodyweightUnit || 'kg', displayUnit), 1) + ' ' + displayUnit
-      : null;
-    const metaParts = [];
-    if (profile.age) metaParts.push(profile.age + ' yrs');
-    if (bwText) metaParts.push(bwText);
-
-    const avatarHtml = (profile.profilePictureType === 'preset' && profile.presetAvatarId)
-      ? App.Components.PresetAvatars.render(profile.presetAvatarId)
-      : '<div class="profile-avatar-empty"></div>';
-
-    const medalsHtml = recentMedals.length
-      ? '<a href="#/achievements" class="profile-medals" aria-label="View all earned medals">' +
-          recentMedals.map(function (a) { return '<span class="profile-medal">' + App.Components.MedalIcon.render(a.tier) + '</span>'; }).join('') +
-        '</a>'
-      : '';
-
-    container.innerHTML =
-      '<div class="profile-card-inner">' +
-        '<div class="profile-avatar-wrap">' +
-          '<div class="profile-avatar" id="profile-avatar-slot">' + avatarHtml + '</div>' +
-          medalsHtml +
-        '</div>' +
-        '<div class="profile-info">' +
-          '<p class="profile-name">' + (profile.name ? escapeHtml(profile.name) : '') + '</p>' +
-          (metaParts.length ? '<p class="profile-meta">' + metaParts.join(' &middot; ') + '</p>' : '') +
-          '<p class="profile-streak">' + App.Components.StreakIcon.render(streak.count || 0) + '<span>' + (streak.count || 0) + ' day streak</span></p>' +
-        '</div>' +
-        '<button type="button" class="profile-edit-btn" id="profile-edit-btn" aria-label="Edit profile">&#9998;</button>' +
-      '</div>';
-
-    if (profile.profilePictureType === 'upload' && profile.profilePictureUrl) {
-      App.Storage.getProfilePhotoUrl(profile.profilePictureUrl).then(function (url) {
-        if (!url) return;
-        const slot = container.querySelector('#profile-avatar-slot');
-        if (slot) slot.innerHTML = '<img src="' + url + '" alt="Profile photo" />';
-      });
-    }
-
-    container.querySelector('#profile-edit-btn').addEventListener('click', function () {
-      App.Components.ProfileEditModal.open(user, function () { renderProfileCard(container, user); });
-    });
-  }
-
   function renderGoalCard(container, user) {
     const goal = App.Storage.getGoal(user.id);
     if (!goal) renderGoalPrompt(container, user);
@@ -546,6 +487,33 @@ App.Pages.Home = (function () {
       '<p class="monthly-recap-highlight">' + highlightHtml + '</p>';
   }
 
+  // Today/Progress tabs: Today (default) is the day-to-day action tab --
+  // today's workout and the current goal. Progress is the "how am I
+  // doing over time" tab -- the 1RM trend graph and the monthly recap --
+  // hidden until tapped so Home's default landing view stays focused on
+  // what to do right now rather than a wall of cards. Plain show/hide on
+  // two already-rendered panels, not a route change, so switching tabs
+  // never re-fetches or re-renders their contents.
+  function wireTabs(container) {
+    const todayBtn = container.querySelector('[data-tab="today"]');
+    const progressBtn = container.querySelector('[data-tab="progress"]');
+    const todayPanel = container.querySelector('#home-tab-today');
+    const progressPanel = container.querySelector('#home-tab-progress');
+
+    function activate(tab) {
+      const isToday = tab === 'today';
+      todayPanel.hidden = !isToday;
+      progressPanel.hidden = isToday;
+      todayBtn.classList.toggle('home-tab-btn--active', isToday);
+      progressBtn.classList.toggle('home-tab-btn--active', !isToday);
+      todayBtn.setAttribute('aria-selected', String(isToday));
+      progressBtn.setAttribute('aria-selected', String(!isToday));
+    }
+
+    todayBtn.addEventListener('click', function () { activate('today'); });
+    progressBtn.addEventListener('click', function () { activate('progress'); });
+  }
+
   function render(container, opts) {
     const user = opts.user;
 
@@ -556,11 +524,18 @@ App.Pages.Home = (function () {
           '<button type="button" class="home-friends-btn" id="home-friends-btn" title="Friends" aria-label="Friends">' + friendsIconSvg() + '</button>' +
         '</div>' +
         '<div id="home-quick-links"></div>' +
-        '<div class="card profile-card" id="home-profile-container"></div>' +
-        '<div class="card" id="home-recap-container"></div>' +
-        '<div class="card" id="home-goal-container"></div>' +
-        '<div class="card" id="home-today-container"></div>' +
-        '<div class="card" id="home-trend-container"></div>' +
+        '<div class="home-tabs" role="tablist">' +
+          '<button type="button" class="home-tab-btn home-tab-btn--active" data-tab="today" role="tab" aria-selected="true">Today</button>' +
+          '<button type="button" class="home-tab-btn" data-tab="progress" role="tab" aria-selected="false">Progress</button>' +
+        '</div>' +
+        '<div id="home-tab-today" class="home-tab-panel">' +
+          '<div class="card card--primary" id="home-today-container"></div>' +
+          '<div class="card" id="home-goal-container"></div>' +
+        '</div>' +
+        '<div id="home-tab-progress" class="home-tab-panel" hidden>' +
+          '<div class="card" id="home-trend-container"></div>' +
+          '<div class="card" id="home-recap-container"></div>' +
+        '</div>' +
       '</section>';
 
     App.Components.QuickLinks.render(container.querySelector('#home-quick-links'), user, 'home');
@@ -568,12 +543,12 @@ App.Pages.Home = (function () {
       App.Components.FriendsPanel.open(user);
     });
     App.Components.FriendsBadge.refresh(user);
+    wireTabs(container);
 
     const streakBadgeEl = container.querySelector('#home-streak-badge');
     const goalEl = container.querySelector('#home-goal-container');
 
     App.Components.StreakBadge.render(streakBadgeEl, user);
-    renderProfileCard(container.querySelector('#home-profile-container'), user);
     renderMonthlyRecapCard(container.querySelector('#home-recap-container'), user);
     renderGoalCard(goalEl, user);
     renderTodayWorkout(container.querySelector('#home-today-container'), user, function () {

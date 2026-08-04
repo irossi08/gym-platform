@@ -93,7 +93,10 @@ App.Components.Navbar = (function () {
           '<a href="#/" class="navbar-brand">CRIMSON<span class="navbar-brand-accent">REP</span></a>' +
         '</div>' +
         '<div class="navbar-right">' +
-          '<span class="navbar-user">' + escapeHtml(user.username) + '</span>' +
+          '<a href="#/profile" class="navbar-profile-link' + ((activeRoute || '').split('/')[0] === 'profile' ? ' navbar-profile-link--active' : '') + '" title="Profile" aria-label="Profile">' +
+            '<span class="navbar-avatar" id="navbar-avatar-slot"></span>' +
+            '<span class="navbar-user">' + escapeHtml(user.username) + '</span>' +
+          '</a>' +
           '<a href="#/settings" class="navbar-settings-btn' + ((activeRoute || '').split('/')[0] === 'settings' ? ' navbar-settings-btn--active' : '') + '" title="Settings" aria-label="Settings">' +
             gearIconSvg() +
           '</a>' +
@@ -108,6 +111,9 @@ App.Components.Navbar = (function () {
     }
 
     container.innerHTML = '<nav class="navbar">' + bodyHtml + '</nav>';
+
+    const avatarSlot = container.querySelector('#navbar-avatar-slot');
+    if (avatarSlot) App.Components.Avatar.render(avatarSlot, App.Storage.getProfile(user.id));
 
     const logoutBtn = container.querySelector('#navbar-logout');
     if (logoutBtn) {

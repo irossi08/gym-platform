@@ -119,6 +119,11 @@ App.Components.TourOverlay = (function () {
 
   function showStep() {
     const step = state.steps[state.index];
+    // Optional per-step DOM prep that has to happen before positioning --
+    // e.g. Home's tour steps use this to switch to the tab their target
+    // lives in, since a hidden (display: none) target has a zero-size
+    // bounding rect and would otherwise spotlight nothing.
+    if (step.before) step.before();
     const isLast = state.index === state.steps.length - 1;
     // A step's message can be a plain string or a function of the current
     // user (e.g. the main tour's closing step only mentions Achievements

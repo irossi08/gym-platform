@@ -1,7 +1,7 @@
 window.App = window.App || {};
 
 App.Router = (function () {
-  const PROTECTED = ['home', 'one-rep-max', 'history', 'split-builder', 'achievements', 'settings', 'profile-setup', 'community'];
+  const PROTECTED = ['home', 'one-rep-max', 'history', 'split-builder', 'achievements', 'settings', 'profile-setup', 'profile', 'community'];
   let navEl, rootEl;
   let lastUser = null, lastRoute = null;
 
@@ -99,6 +99,8 @@ App.Router = (function () {
       App.Pages.Achievements.render(rootEl, { user: user });
     } else if (route === 'settings') {
       App.Pages.Settings.render(rootEl, { user: user });
+    } else if (route === 'profile') {
+      App.Pages.Profile.render(rootEl, { user: user });
     } else if (routeBase === 'community') {
       const segments = route.split('/');
       if (segments[1] === 'join' && segments[2]) {
