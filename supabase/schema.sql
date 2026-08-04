@@ -576,6 +576,10 @@ end $$;
 -- verifying the caller IS the invited user and the invite is still pending.
 -- Returns the community_id (rather than void) so the client can log a
 -- member_joined community_activity row without a second round trip.
+-- Postgres can't change an existing function's return type via CREATE OR
+-- REPLACE -- the old (void-returning) version has to be dropped first, so
+-- this is safe to re-run whether or not the old version still exists.
+drop function if exists public.accept_community_invite(uuid);
 create or replace function public.accept_community_invite(p_invite_id uuid)
 returns uuid
 language plpgsql
