@@ -92,6 +92,51 @@ App.Pages.SplitBuilder = (function () {
                 '</select>' +
               '</div>' +
             '</div>' +
+            '<div class="field-row">' +
+              '<div class="field">' +
+                '<label for="sb-height">Height</label>' +
+                '<input id="sb-height" type="number" inputmode="decimal" step="0.1" min="0" placeholder="e.g. 178" />' +
+                '<p class="field-error" id="sb-height-error"></p>' +
+              '</div>' +
+              '<div class="field field-narrow">' +
+                '<label for="sb-height-unit">Unit</label>' +
+                '<select id="sb-height-unit">' +
+                  '<option value="cm"' + (d.heightUnit === 'in' ? '' : ' selected') + '>cm</option>' +
+                  '<option value="in"' + (d.heightUnit === 'in' ? ' selected' : '') + '>in</option>' +
+                '</select>' +
+              '</div>' +
+            '</div>' +
+            '<div class="field">' +
+              '<label for="sb-goal">Goal</label>' +
+              '<select id="sb-goal">' +
+                '<option value="fat_loss"' + (d.goal === 'fat_loss' ? ' selected' : '') + '>Fat Loss</option>' +
+                '<option value="lean_bulk"' + (d.goal === 'lean_bulk' ? ' selected' : '') + '>Lean Bulk</option>' +
+                '<option value="normal_bulk"' + (d.goal === 'normal_bulk' ? ' selected' : '') + '>Normal Bulk</option>' +
+                '<option value="recomposition"' + (d.goal === 'recomposition' ? ' selected' : '') + '>Recomposition</option>' +
+                '<option value="maintenance"' + (!d.goal || d.goal === 'maintenance' ? ' selected' : '') + '>Maintenance</option>' +
+              '</select>' +
+              '<p class="field-hint">Shapes the rep ranges/rest in your split, whether cardio is included by default, and your calorie target below.</p>' +
+            '</div>' +
+            '<div class="field">' +
+              '<label for="sb-activity">Activity level</label>' +
+              '<select id="sb-activity">' +
+                '<option value="sedentary"' + (d.activityLevel === 'sedentary' ? ' selected' : '') + '>Sedentary</option>' +
+                '<option value="lightly_active"' + (d.activityLevel === 'lightly_active' ? ' selected' : '') + '>Lightly Active</option>' +
+                '<option value="moderately_active"' + (!d.activityLevel || d.activityLevel === 'moderately_active' ? ' selected' : '') + '>Moderately Active</option>' +
+                '<option value="very_active"' + (d.activityLevel === 'very_active' ? ' selected' : '') + '>Very Active</option>' +
+                '<option value="extremely_active"' + (d.activityLevel === 'extremely_active' ? ' selected' : '') + '>Extremely Active</option>' +
+              '</select>' +
+              '<p class="field-hint">Daily activity outside of training -- used for the calorie estimate below, not the split itself.</p>' +
+            '</div>' +
+            '<div class="field">' +
+              '<label for="sb-cardio-type">Preferred cardio type</label>' +
+              '<select id="sb-cardio-type">' +
+                App.SplitBuilder.CARDIO_TYPES.map(function (t) {
+                  return '<option value="' + t + '"' + (d.preferredCardioType === t ? ' selected' : '') + '>' + App.SplitBuilder.CARDIO_LABELS[t] + '</option>';
+                }).join('') +
+              '</select>' +
+              '<p class="field-hint">Used whenever your split includes cardio (optional either way) -- defaults to Run.</p>' +
+            '</div>' +
             '<div class="field">' +
               '<label>Days available to train</label>' +
               '<div class="day-checkbox-grid">' +
@@ -138,15 +183,22 @@ App.Pages.SplitBuilder = (function () {
       e.preventDefault();
       const ageError = container.querySelector('#sb-age-error');
       const bwError = container.querySelector('#sb-bodyweight-error');
+      const heightError = container.querySelector('#sb-height-error');
       const daysError = container.querySelector('#sb-days-error');
       ageError.textContent = '';
       bwError.textContent = '';
+      heightError.textContent = '';
       daysError.textContent = '';
 
       const age = parseInt(container.querySelector('#sb-age').value, 10);
       const bodyweight = parseFloat(container.querySelector('#sb-bodyweight').value);
       const bodyweightUnit = container.querySelector('#sb-unit').value;
       const sex = container.querySelector('#sb-sex').value;
+      const height = parseFloat(container.querySelector('#sb-height').value);
+      const heightUnit = container.querySelector('#sb-height-unit').value;
+      const goal = container.querySelector('#sb-goal').value;
+      const activityLevel = container.querySelector('#sb-activity').value;
+      const preferredCardioType = container.querySelector('#sb-cardio-type').value;
       const trainingWeekdays = Array.prototype.slice.call(container.querySelectorAll('.sb-day-checkbox:checked'))
         .map(function (cb) { return parseInt(cb.value, 10); })
         .sort(function (a, b) { return a - b; });
@@ -162,6 +214,10 @@ App.Pages.SplitBuilder = (function () {
         bwError.textContent = 'Enter a bodyweight greater than 0.';
         hasError = true;
       }
+      if (!(height > 0)) {
+        heightError.textContent = 'Enter a height greater than 0.';
+        hasError = true;
+      }
       if (!(trainingWeekdays.length >= 2 && trainingWeekdays.length <= 6)) {
         daysError.textContent = 'Select between 2 and 6 days.';
         hasError = true;
@@ -170,6 +226,8 @@ App.Pages.SplitBuilder = (function () {
 
       const newProfile = {
         age: age, bodyweight: bodyweight, bodyweightUnit: bodyweightUnit, sex: sex,
+        height: height, heightUnit: heightUnit, goal: goal, activityLevel: activityLevel,
+        preferredCardioType: preferredCardioType,
         daysPerWeek: trainingWeekdays.length, trainingWeekdays: trainingWeekdays,
         timePerSession: timePerSession, experienceLevel: experienceLevel,
       };
@@ -204,6 +262,35 @@ App.Pages.SplitBuilder = (function () {
       '<input type="number" class="split-rest-custom" min="0" step="5" value="' + restSeconds + '" ' +
         'data-weekday="' + weekday + '" data-idx="' + exIdx + '"' + (isPreset ? ' hidden' : '') + ' />';
     return select + custom;
+  }
+
+  // Shown alongside the generated split, not on a separate page -- reads
+  // straight off the same profile object split generation itself uses.
+  // Falls back to a hint (rather than zeros or hiding the card) when a
+  // required input is missing, e.g. a profile saved before height/goal/
+  // activity level existed.
+  function nutritionCardHtml(profile) {
+    const nutrition = App.Nutrition.calculate(profile);
+    const body = nutrition
+      ? (
+          '<p class="nutrition-goal-label">' + App.Nutrition.GOAL_LABELS[nutrition.goal] + ' &middot; ' + App.Nutrition.ACTIVITY_LABELS[nutrition.activityLevel] + '</p>' +
+          '<div class="nutrition-stats-grid">' +
+            '<div class="nutrition-stat"><span class="nutrition-stat-value">' + nutrition.calories + '</span><span class="nutrition-stat-label">Calories / day</span></div>' +
+            '<div class="nutrition-stat"><span class="nutrition-stat-value">' + nutrition.protein + 'g</span><span class="nutrition-stat-label">Protein</span></div>' +
+            '<div class="nutrition-stat"><span class="nutrition-stat-value">' + nutrition.fat + 'g</span><span class="nutrition-stat-label">Fat</span></div>' +
+            '<div class="nutrition-stat"><span class="nutrition-stat-value">' + nutrition.carbs + 'g</span><span class="nutrition-stat-label">Carbs</span></div>' +
+          '</div>' +
+          '<p class="nutrition-detail">BMR ' + nutrition.bmr + ' &middot; TDEE ' + nutrition.tdee + '</p>'
+        )
+      : '<p class="empty-hint">Add your height via Regenerate to see a calorie estimate here.</p>';
+
+    return (
+      '<div class="card nutrition-card">' +
+        '<h2 class="section-title">Calorie &amp; Macro Estimate</h2>' +
+        body +
+        '<p class="nutrition-disclaimer">Formula-based estimate (Mifflin-St Jeor), not personalized professional nutrition advice -- consult a doctor or registered dietitian before making major dietary changes, especially with any medical condition.</p>' +
+      '</div>'
+    );
   }
 
   function restLabel(restSeconds) {
@@ -248,20 +335,35 @@ App.Pages.SplitBuilder = (function () {
       });
     }
 
+    function refreshDayTimeBadge(weekday) {
+      const card = container.querySelector('.split-day-card[data-weekday="' + weekday + '"]');
+      if (!card) return;
+      const day = findDay(weekday);
+      const badge = card.querySelector('.split-day-time-value');
+      if (badge) badge.textContent = App.SplitBuilder.estimateMinutes(day.exercises, day.cardio);
+    }
+
     // Lightweight path for fields that must recalculate live (sets, rest):
     // patch storage + just the day's time badge + that row's summary text
     // directly, instead of rebuilding the day's HTML, so a number input
     // mid-keystroke never loses focus.
     function updateLiveDisplays(weekday, exIdx) {
       App.Storage.saveSplit(user.id, split);
+      refreshDayTimeBadge(weekday);
       const card = container.querySelector('.split-day-card[data-weekday="' + weekday + '"]');
       if (!card) return;
       const day = findDay(weekday);
-      const badge = card.querySelector('.split-day-time-value');
-      if (badge) badge.textContent = App.SplitBuilder.estimateMinutes(day.exercises);
       const row = card.querySelectorAll('.ex-row')[exIdx];
       const summaryEl = row && row.querySelector('.ex-row-summary');
       if (summaryEl) summaryEl.innerHTML = summaryText(day.exercises[exIdx]);
+    }
+
+    // Same idea as updateLiveDisplays above, but for the cardio row's
+    // minutes input -- there's no exercise row/summary to patch, just the
+    // day's time badge.
+    function updateCardioLiveDisplay(weekday) {
+      App.Storage.saveSplit(user.id, split);
+      refreshDayTimeBadge(weekday);
     }
 
     // Missed-workout reschedule: swap the two days' weekday assignments if
@@ -295,7 +397,7 @@ App.Pages.SplitBuilder = (function () {
       }
 
       const bucketsLabel = day.buckets.map(function (b) { return App.SplitBuilder.BUCKET_LABELS[b]; }).join(' + ');
-      const minutes = App.SplitBuilder.estimateMinutes(day.exercises);
+      const minutes = App.SplitBuilder.estimateMinutes(day.exercises, day.cardio);
       const isRescheduleOpen = !!rescheduleOpenState[weekday];
       const isDayOpen = !!dayOpenState[weekday];
 
@@ -326,6 +428,33 @@ App.Pages.SplitBuilder = (function () {
             }).join('') +
           '</ul>';
 
+      const cardioTypeOptionsHtml = App.SplitBuilder.CARDIO_TYPES.map(function (t) {
+        return '<option value="' + t + '"' + (day.cardio && day.cardio.type === t ? ' selected' : '') + '>' + App.SplitBuilder.CARDIO_LABELS[t] + '</option>';
+      }).join('');
+
+      // Cardio is a single optional item per day, separate from the
+      // exercise list above -- prescribed as type + duration, not
+      // weight/sets/reps/rest, so it gets its own compact row rather than
+      // reusing ex-row's expand/collapse layout. "Swappable the same way
+      // strength exercises are" means the type dropdown, not a full
+      // ExercisePicker -- there's a fixed 6-item list here, not the whole
+      // exercise pool.
+      const cardioHtml = day.cardio
+        ? (
+            '<div class="split-cardio-row" data-weekday="' + weekday + '">' +
+              '<span class="split-cardio-label">Cardio</span>' +
+              '<select class="split-cardio-type" data-weekday="' + weekday + '">' + cardioTypeOptionsHtml + '</select>' +
+              '<input type="number" class="split-cardio-minutes" min="1" step="1" value="' + day.cardio.minutes + '" data-weekday="' + weekday + '" />' +
+              '<span class="rx-label">min</span>' +
+              '<button type="button" class="ex-row-remove split-cardio-remove" data-weekday="' + weekday + '" aria-label="Remove cardio">&times;</button>' +
+            '</div>'
+          )
+        : (
+            '<div class="split-cardio-row split-cardio-row--empty" data-weekday="' + weekday + '">' +
+              '<button type="button" class="btn-ghost-sm split-cardio-add" data-weekday="' + weekday + '">+ Add cardio</button>' +
+            '</div>'
+          );
+
       const rescheduleOptionsHtml = [0, 1, 2, 3, 4, 5, 6].filter(function (w) { return w !== weekday; }).map(function (w) {
         return '<button type="button" class="day-reschedule-option" data-from="' + weekday + '" data-to="' + w + '">' + WEEKDAY_NAMES[w].slice(0, 3) + '</button>';
       }).join('');
@@ -351,6 +480,7 @@ App.Pages.SplitBuilder = (function () {
           '</div>' +
           '<div class="split-day-body" data-weekday="' + weekday + '"' + (isDayOpen ? '' : ' hidden') + '>' +
             rowsHtml +
+            cardioHtml +
             '<div class="split-add-row">' +
               '<div class="ex-picker-slot ex-add-slot" data-weekday="' + weekday + '"></div>' +
               '<button type="button" class="btn-ghost-sm split-add-btn" data-weekday="' + weekday + '">+ Add exercise</button>' +
@@ -379,6 +509,7 @@ App.Pages.SplitBuilder = (function () {
         '</div>' +
         '<div id="sb-quick-links"></div>' +
         '<p class="split-disclaimer">A rule-based weekly template from your answers, not personalized coaching — sets, reps, and rest are starting points, edit anything below.</p>' +
+        nutritionCardHtml(profile) +
         dayCardsHtml +
         '<button type="button" class="btn-ghost" id="sb-regenerate">Regenerate</button>' +
       '</section>';
@@ -422,10 +553,10 @@ App.Pages.SplitBuilder = (function () {
         triggerClass: 'ex-picker-trigger--inline',
         userId: user.id,
         onChange: function (newLift) {
-          const sr = App.SplitBuilder.getSetsReps(newLift, profile.experienceLevel);
+          const sr = App.SplitBuilder.getSetsReps(newLift, profile.experienceLevel, profile.goal);
           findDay(weekday).exercises[exIdx] = {
             lift: newLift, sets: sr.sets, reps: sr.reps,
-            restSeconds: App.SplitBuilder.getDefaultRestSeconds(newLift),
+            restSeconds: App.SplitBuilder.getDefaultRestSeconds(newLift, profile.goal),
           };
           persistAndRerender();
         },
@@ -458,10 +589,10 @@ App.Pages.SplitBuilder = (function () {
       btn.addEventListener('click', function () {
         const weekday = parseInt(btn.dataset.weekday, 10);
         const lift = addPickerValues[weekday] || App.Standards.CATEGORIES[0].lifts[0];
-        const sr = App.SplitBuilder.getSetsReps(lift, profile.experienceLevel);
+        const sr = App.SplitBuilder.getSetsReps(lift, profile.experienceLevel, profile.goal);
         findDay(weekday).exercises.push({
           lift: lift, sets: sr.sets, reps: sr.reps,
-          restSeconds: App.SplitBuilder.getDefaultRestSeconds(lift),
+          restSeconds: App.SplitBuilder.getDefaultRestSeconds(lift, profile.goal),
         });
         persistAndRerender();
       });
@@ -513,6 +644,40 @@ App.Pages.SplitBuilder = (function () {
         const exIdx = parseInt(inp.dataset.idx, 10);
         findDay(weekday).exercises[exIdx].restSeconds = val;
         updateLiveDisplays(weekday, exIdx);
+      });
+    });
+
+    container.querySelectorAll('.split-cardio-type').forEach(function (sel) {
+      sel.addEventListener('change', function () {
+        const weekday = parseInt(sel.dataset.weekday, 10);
+        findDay(weekday).cardio.type = sel.value;
+        App.Storage.saveSplit(user.id, split);
+      });
+    });
+
+    container.querySelectorAll('.split-cardio-minutes').forEach(function (inp) {
+      inp.addEventListener('input', function () {
+        const val = parseInt(inp.value, 10);
+        if (!(val >= 1)) return;
+        const weekday = parseInt(inp.dataset.weekday, 10);
+        findDay(weekday).cardio.minutes = val;
+        updateCardioLiveDisplay(weekday);
+      });
+    });
+
+    container.querySelectorAll('.split-cardio-remove').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const weekday = parseInt(btn.dataset.weekday, 10);
+        findDay(weekday).cardio = null;
+        persistAndRerender();
+      });
+    });
+
+    container.querySelectorAll('.split-cardio-add').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const weekday = parseInt(btn.dataset.weekday, 10);
+        findDay(weekday).cardio = { type: profile.preferredCardioType || 'run', minutes: 20 };
+        persistAndRerender();
       });
     });
 

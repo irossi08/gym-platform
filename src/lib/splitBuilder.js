@@ -60,17 +60,81 @@ App.SplitBuilder = (function () {
     advanced: { compound: { sets: 5, reps: '5' }, isolation: { sets: 3, reps: '10-12' } },
   };
 
+  // Goal is layered ON TOP of the experience-level table above, not a
+  // replacement for it: sets always come from SETS_REPS (experience still
+  // governs training volume/progression), only the rep target and rest
+  // period shift by goal. No entry for 'maintenance' (or an unset/unknown
+  // goal) is intentional -- it falls through to the experience-level
+  // default reps/rest untouched, i.e. current behavior.
+  //
+  // Recomposition's "mix of lower-rep strength work alongside hypertrophy
+  // work" maps naturally onto the compound/isolation split that already
+  // exists here: compounds get pushed toward strength rep ranges, isolation
+  // work stays hypertrophy-range.
+  const GOAL_REPS = {
+    fat_loss: { compound: '10-12', isolation: '12-15' },
+    lean_bulk: { compound: '8-10', isolation: '10-12' },
+    normal_bulk: { compound: '8-10', isolation: '10-12' },
+    recomposition: { compound: '5-6', isolation: '10-12' },
+  };
+
+  // Only Fat Loss calls for shorter rest than the compound/isolation
+  // defaults above -- every other goal (including recomposition) keeps
+  // "standard" rest, i.e. no override here either.
+  const GOAL_REST_SECONDS = {
+    fat_loss: { compound: 60, isolation: 45 },
+  };
+
   function isCompound(lift) {
     return !!COMPOUND[lift];
   }
 
-  function getSetsReps(lift, experience) {
+  function getSetsReps(lift, experience, goal) {
     const table = SETS_REPS[experience] || SETS_REPS.beginner;
-    return isCompound(lift) ? table.compound : table.isolation;
+    const base = isCompound(lift) ? table.compound : table.isolation;
+    const goalReps = GOAL_REPS[goal];
+    if (!goalReps) return base;
+    return { sets: base.sets, reps: isCompound(lift) ? goalReps.compound : goalReps.isolation };
   }
 
-  function getDefaultRestSeconds(lift) {
+  function getDefaultRestSeconds(lift, goal) {
+    const goalRest = GOAL_REST_SECONDS[goal];
+    if (goalRest) return isCompound(lift) ? goalRest.compound : goalRest.isolation;
     return isCompound(lift) ? DEFAULT_REST_COMPOUND : DEFAULT_REST_ISOLATION;
+  }
+
+  // ---------- cardio ----------
+  // A single optional cardio item per training day: { type, minutes }. Kept
+  // completely separate from the weighted `exercises` list (different
+  // prescription shape entirely -- duration, not sets/reps/rest -- and no
+  // 1RM/standards tracking applies to it), but it lives on the same `day`
+  // object in splits.days so it moves with reschedules/swaps for free and
+  // rides the exact same whole-day "mark complete" flow as everything else
+  // scheduled that day (see App.Schedule / WorkoutCompleteModal -- neither
+  // is exercise-by-exercise, so no extra wiring is needed there).
+  const CARDIO_TYPES = ['run', 'bike', 'row', 'elliptical', 'stairmaster', 'walk'];
+  const CARDIO_LABELS = {
+    run: 'Run', bike: 'Bike', row: 'Row',
+    elliptical: 'Elliptical', stairmaster: 'Stairmaster', walk: 'Walk',
+  };
+
+  // Whether/how much cardio a freshly-generated split defaults to, keyed by
+  // Goal. `dayIndex` is this day's position (0-based) among the week's
+  // chosen training days, used only to thin recomposition's cardio down to
+  // "fewer days" (every other training day) rather than all of them.
+  // Lean/Normal Bulk and Maintenance all come back null -- not included by
+  // default, but still addable per day via the "+ Add cardio" control,
+  // since none of those make it mandatory.
+  function defaultCardioMinutesForGoal(goal, dayIndex) {
+    if (goal === 'fat_loss') return 25;
+    if (goal === 'recomposition') return dayIndex % 2 === 0 ? 12 : null;
+    return null;
+  }
+
+  function buildCardioForDay(profile, dayIndex) {
+    const minutes = defaultCardioMinutesForGoal(profile.goal, dayIndex);
+    if (!minutes) return null;
+    return { type: profile.preferredCardioType || 'run', minutes: minutes };
   }
 
   // Rotates the compound sub-list and isolation sub-list independently (so
@@ -114,17 +178,20 @@ App.SplitBuilder = (function () {
   }
 
   // Live estimate: sum over all exercises of sets x (fixed working-set
-  // duration + that exercise's current rest), plus a fixed warm-up buffer.
-  // Pulls sets/rest from whatever the user currently has set, so editing
-  // either one immediately changes the total -- nothing here is cached from
-  // generation time.
-  function estimateMinutes(exercises) {
+  // duration + that exercise's current rest), plus a fixed warm-up buffer,
+  // plus the day's cardio duration if it has one. Pulls sets/rest/minutes
+  // from whatever the user currently has set, so editing any of it
+  // immediately changes the total -- nothing here is cached from
+  // generation time. `cardio` is optional so every existing call site
+  // (before this feature existed) still works unchanged.
+  function estimateMinutes(exercises, cardio) {
     const workSeconds = exercises.reduce(function (total, ex) {
       const sets = Math.max(parseInt(ex.sets, 10) || 0, 0);
       const rest = Math.max(parseInt(ex.restSeconds, 10) || 0, 0);
       return total + sets * (WORKING_SET_SECONDS + rest);
     }, 0);
-    return Math.round((workSeconds + WARMUP_MIN * 60) / 60);
+    const cardioMinutes = cardio ? Math.max(parseInt(cardio.minutes, 10) || 0, 0) : 0;
+    return Math.round((workSeconds + WARMUP_MIN * 60) / 60) + cardioMinutes;
   }
 
   function structureForDays(daysPerWeek) {
@@ -178,10 +245,13 @@ App.SplitBuilder = (function () {
     const days = structure.map((day, i) => {
       const lifts = pickExercisesForDay(day.buckets, perDayCount, day.variant);
       const exercises = lifts.map((lift) => {
-        const sr = getSetsReps(lift, profile.experienceLevel);
-        return { lift: lift, sets: sr.sets, reps: sr.reps, restSeconds: getDefaultRestSeconds(lift) };
+        const sr = getSetsReps(lift, profile.experienceLevel, profile.goal);
+        return { lift: lift, sets: sr.sets, reps: sr.reps, restSeconds: getDefaultRestSeconds(lift, profile.goal) };
       });
-      return { label: day.label, buckets: day.buckets, exercises: exercises, weekday: weekdays[i] };
+      return {
+        label: day.label, buckets: day.buckets, exercises: exercises, weekday: weekdays[i],
+        cardio: buildCardioForDay(profile, i),
+      };
     });
     return { generatedAt: new Date().toISOString(), days: days };
   }
@@ -193,9 +263,12 @@ App.SplitBuilder = (function () {
     estimateMinutes,
     exercisesPerDayFromTime,
     weekdaysForDaysPerWeek,
+    buildCardioForDay,
     BUCKET_EXERCISES,
     BUCKET_LABELS,
     WEEKDAY_NAMES,
+    CARDIO_TYPES,
+    CARDIO_LABELS,
     isCompound,
     REST_PRESETS: [30, 60, 90, 120, 180],
   };

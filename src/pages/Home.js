@@ -384,10 +384,10 @@ App.Pages.Home = (function () {
 
     const details = App.Schedule.getCompletionDetails(user.id, todayKey);
     const completed = !!(details && details.completed);
-    const minutes = App.SplitBuilder.estimateMinutes(day.exercises);
+    const minutes = App.SplitBuilder.estimateMinutes(day.exercises, day.cardio);
     const exerciseListHtml = day.exercises.map(function (ex) {
       return '<li>' + App.ExerciseLibrary.label(ex.lift) + '</li>';
-    }).join('');
+    }).join('') + (day.cardio ? '<li>' + App.SplitBuilder.CARDIO_LABELS[day.cardio.type] + ' — ' + day.cardio.minutes + ' minutes</li>' : '');
 
     // Auto-detected (geolocation, App.Components.GymAutoComplete) and
     // manual-with-photo (App.Components.WorkoutCompleteModal) are visually

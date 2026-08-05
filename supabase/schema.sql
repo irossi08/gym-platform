@@ -40,6 +40,19 @@ alter table public.profiles add column if not exists profile_picture_type text;
 alter table public.profiles add column if not exists profile_picture_url text;
 alter table public.profiles add column if not exists preset_avatar_id text;
 
+-- Height/Goal/Activity Level/preferred cardio type -- Build My Split
+-- questionnaire additions feeding the goal-adjusted rep/rest prescription,
+-- the generated split's optional cardio item, and the calorie/macro
+-- calculator shown alongside the split results. height_unit mirrors the
+-- existing bodyweight_unit pattern ('cm'/'in'); goal/activity_level/
+-- preferred_cardio_type are free-text enums validated client-side only,
+-- same as experience_level already is.
+alter table public.profiles add column if not exists height numeric;
+alter table public.profiles add column if not exists height_unit text;
+alter table public.profiles add column if not exists goal text;
+alter table public.profiles add column if not exists activity_level text;
+alter table public.profiles add column if not exists preferred_cardio_type text;
+
 -- Explicit "has this user ever completed the mandatory first-time profile
 -- setup" flag, set true only by ProfileSetup's onSave (see ProfileSetup.js
 -- / router.js). Deliberately a dedicated column rather than inferring

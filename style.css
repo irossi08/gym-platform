@@ -2029,6 +2029,123 @@ a:focus-visible {
   white-space: nowrap;
 }
 
+/* Cardio row -- deliberately not styled like an ex-row (no expand/collapse,
+   no sets/reps/rest): just a type select + a duration input, mirroring the
+   rest-select's compact underline treatment. */
+.split-cardio-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 0;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+
+.split-cardio-row--empty {
+  border-top: none;
+  margin-top: 0;
+  padding-top: 0;
+}
+
+.split-cardio-label {
+  flex: 0 0 auto;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.split-cardio-type {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 34px;
+  padding: 4px 8px;
+  font-size: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text-primary);
+}
+
+.split-cardio-minutes {
+  flex: 0 0 60px;
+  width: 60px;
+  min-height: 34px;
+  padding: 4px 6px;
+  font-size: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text-primary);
+  text-align: center;
+}
+
+/* ---------- Calorie & macro estimate (Build My Split results) ---------- */
+
+.nutrition-card {
+  margin-bottom: 16px;
+}
+
+.nutrition-goal-label {
+  margin: 2px 0 12px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.nutrition-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+@media (max-width: 480px) {
+  .nutrition-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.nutrition-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 6px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  text-align: center;
+}
+
+.nutrition-stat-value {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.nutrition-stat-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.nutrition-detail {
+  margin: 10px 0 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.nutrition-disclaimer {
+  margin: 12px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
 /* ---------- Home ---------- */
 
 /* Streak badge -- compact seedling icon + count, the only streak display

@@ -17,7 +17,7 @@
 // file's own bytes -- if this string doesn't change, the browser has no
 // way to know the precached files are stale, and anyone with the PWA
 // already installed keeps getting the old cached version indefinitely.
-const CACHE_VERSION = 'crimson-rep-v25';
+const CACHE_VERSION = 'crimson-rep-v26';
 
 const PRECACHE_URLS = [
   './',
@@ -28,6 +28,7 @@ const PRECACHE_URLS = [
   './src/lib/supabaseClient.js',
   './src/lib/mapboxClient.js',
   './src/lib/units.js',
+  './src/lib/nutrition.js',
   './src/lib/theme.js',
   './src/lib/oneRepMax.js',
   './src/lib/standards.js',
