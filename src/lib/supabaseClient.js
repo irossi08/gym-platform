@@ -14,9 +14,20 @@ window.App = window.App || {};
  * treating a token blob as a route name. PKCE instead returns a `code` in
  * the query string (?code=...), which the router never looks at, so
  * there's no ambiguity regardless of timing.
+ *
+ * detectSessionInUrl is explicitly OFF: that flag hands the ?code=...
+ * exchange to an internal step of this library we have no visibility
+ * into or control over. auth.js's exchangeOAuthCodeIfPresent() is the
+ * ONLY code path allowed to call exchangeCodeForSession -- it logs every
+ * call and hard-guards against processing the same code twice
+ * (Google/Supabase authorization codes are single-use; exchanging one
+ * twice is exactly what produces "Unable to exchange external code").
+ * Turning this library behavior off is what makes that guarantee
+ * possible -- with it on, both this code AND the library could
+ * independently attempt the same exchange with no way to tell from here.
  */
 App.Supabase = window.supabase.createClient(
   'https://sfteeyeoevichkdgtnby.supabase.co',
   'sb_publishable_KaoTqoZEe3uWMnfNvw4tFg_Hu4KxryJ',
-  { auth: { flowType: 'pkce', detectSessionInUrl: true, persistSession: true } }
+  { auth: { flowType: 'pkce', detectSessionInUrl: false, persistSession: true } }
 );

@@ -21,6 +21,18 @@ App.Auth = (function () {
   const supabase = App.Supabase;
   let currentUser = null;
 
+  let oauthError = null;
+
+  function mapUser(sbUser) {
+    if (!sbUser) return null;
+    const meta = sbUser.user_metadata || {};
+    return {
+      id: sbUser.id,
+      email: sbUser.email,
+      username: meta.username || (sbUser.email || '').split('@')[0],
+    };
+  }
+
   // If the OAuth redirect back came from an error (most likely: the
   // production URL isn't in Supabase's Authentication -> URL Configuration
   // -> Redirect URLs allow-list yet, or the provider itself is
@@ -30,7 +42,6 @@ App.Auth = (function () {
   // with nothing in the console to explain why. Captured once at module
   // load (before anything strips the query string) so Auth.js can surface
   // it to the user instead of it being silently dropped.
-  let oauthError = null;
   (function captureOAuthErrorFromUrl() {
     const params = new URLSearchParams(window.location.search);
     const err = params.get('error_description') || params.get('error');
@@ -57,14 +68,55 @@ App.Auth = (function () {
     return !!oauthError;
   }
 
-  function mapUser(sbUser) {
-    if (!sbUser) return null;
-    const meta = sbUser.user_metadata || {};
-    return {
-      id: sbUser.id,
-      email: sbUser.email,
-      username: meta.username || (sbUser.email || '').split('@')[0],
-    };
+  // Manual PKCE code exchange -- see supabaseClient.js's comment on why
+  // detectSessionInUrl is off. This is the ONLY code path allowed to call
+  // exchangeCodeForSession, specifically so a reported "Unable to
+  // exchange external code" error (which Google/Supabase return when a
+  // single-use authorization code gets exchanged more than once) can
+  // actually be diagnosed instead of guessed at: every attempt is logged
+  // with a call count and a truncated code value, and a sessionStorage
+  // guard makes a second attempt at the SAME code a logged no-op instead
+  // of a second real network call to Google. If exchangeCodeForSession
+  // itself still errors with exactly ONE call logged beforehand, that
+  // rules out a duplicate-call bug on this end and points at a genuine
+  // Google Cloud Console / Supabase provider config mismatch instead.
+  let exchangeCallCount = 0;
+
+  function exchangeOAuthCodeIfPresent() {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    if (!code) return Promise.resolve();
+
+    const shortCode = code.slice(0, 12) + '…(' + code.length + ' chars)';
+
+    // Stripped immediately, synchronously, before any async work -- so a
+    // reload of this same tab mid-exchange can no longer re-present the
+    // same code param at all, not even in the narrow window while the
+    // network request below is in flight.
+    const cleanUrl = new URL(window.location.href);
+    cleanUrl.searchParams.delete('code');
+    window.history.replaceState({}, '', cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
+
+    const guardKey = 'crimson_rep_oauth_code_seen:' + code;
+    if (sessionStorage.getItem(guardKey)) {
+      console.error('[Auth] duplicate code-exchange attempt BLOCKED -- this exact code was already processed this session:', shortCode);
+      return Promise.resolve();
+    }
+    sessionStorage.setItem(guardKey, '1');
+
+    exchangeCallCount += 1;
+    const callNumber = exchangeCallCount;
+    console.log('[Auth] exchangeCodeForSession call #' + callNumber + ' starting, code:', shortCode);
+
+    return supabase.auth.exchangeCodeForSession(code).then(function (res) {
+      if (res.error) {
+        oauthError = res.error.message;
+        console.error('[Auth] exchangeCodeForSession call #' + callNumber + ' FAILED:', res.error.message, '-- code was:', shortCode);
+        return;
+      }
+      currentUser = mapUser(res.data.session ? res.data.session.user : null);
+      console.log('[Auth] exchangeCodeForSession call #' + callNumber + ' succeeded, user:', currentUser && currentUser.id);
+    });
   }
 
   // Beyond just caching currentUser, this is also the safety net for the
@@ -97,6 +149,7 @@ App.Auth = (function () {
   });
 
   async function ready() {
+    await exchangeOAuthCodeIfPresent();
     const { data } = await supabase.auth.getSession();
     currentUser = mapUser(data.session ? data.session.user : null);
   }
